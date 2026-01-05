@@ -1,16 +1,29 @@
 // Inventory API - Get facilities with full hierarchy for inventory page
 // GET /api/inventory - Get all facilities with racks, shelves, boxes
+// Supports ?private=true for private libraries
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { canAccessFacility } from '@/server/db/facility'
 
 export async function GET(request: NextRequest) {
     try {
+        const session = await getServerSession(authOptions)
+        if (!session?.user) {
+            return NextResponse.json({ error: '未登录' }, { status: 401 })
+        }
+
         const { searchParams } = new URL(request.url)
         const facilityId = searchParams.get('facilityId')
         const rackId = searchParams.get('rackId')
         const shelfId = searchParams.get('shelfId')
         const boxId = searchParams.get('boxId')
+        const privateMode = searchParams.get('private') === 'true'
+
+        const userId = session.user.id
+        const isAdmin = session.user.role === 'ADMIN'
 
         // Get single box with slots
         if (boxId) {
@@ -30,11 +43,32 @@ export async function GET(request: NextRequest) {
                     },
                 },
             })
+
+            // 检查权限
+            if (box?.shelf.rack.facility) {
+                const hasAccess = await canAccessFacility(box.shelf.rack.facility.id, userId, isAdmin)
+                if (!hasAccess) {
+                    return NextResponse.json({ error: '无权访问该盒子' }, { status: 403 })
+                }
+            }
+
             return NextResponse.json({ box })
         }
 
         // Get boxes for a shelf
         if (shelfId) {
+            const shelf = await prisma.shelf.findUnique({
+                where: { id: shelfId },
+                include: { rack: { include: { facility: true } } }
+            })
+
+            if (shelf?.rack.facility) {
+                const hasAccess = await canAccessFacility(shelf.rack.facility.id, userId, isAdmin)
+                if (!hasAccess) {
+                    return NextResponse.json({ error: '无权访问该层架' }, { status: 403 })
+                }
+            }
+
             const boxes = await prisma.box.findMany({
                 where: { shelfId },
                 include: {
@@ -56,8 +90,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ boxes: boxesWithStats })
         }
 
-        // Get racks for a facility
+        // Get racks for a facility (权限检查)
         if (facilityId) {
+            const hasAccess = await canAccessFacility(facilityId, userId, isAdmin)
+            if (!hasAccess) {
+                return NextResponse.json({ error: '无权访问该设施' }, { status: 403 })
+            }
+
             const racks = await prisma.rack.findMany({
                 where: { facilityId },
                 include: {
@@ -138,12 +177,26 @@ export async function GET(request: NextRequest) {
                     },
                 },
             })
+
+            if (rack?.facility) {
+                const hasAccess = await canAccessFacility(rack.facility.id, userId, isAdmin)
+                if (!hasAccess) {
+                    return NextResponse.json({ error: '无权访问该货架' }, { status: 403 })
+                }
+            }
+
             return NextResponse.json({ rack })
         }
 
-        // Default: Get all facilities
+        // Default: Get all facilities (根据 privateMode 过滤)
+        const whereClause = privateMode
+            ? { isPrivate: true, ...(isAdmin ? {} : { ownerId: userId }) }
+            : { isPrivate: false }
+
         const facilities = await prisma.storageFacility.findMany({
+            where: whereClause,
             include: {
+                owner: { select: { id: true, name: true, email: true } },
                 racks: {
                     include: {
                         shelves: {
@@ -198,6 +251,8 @@ export async function GET(request: NextRequest) {
                 usedSlots: used,
                 racks: facility.totalRacks,
                 racksDetail,
+                isPrivate: facility.isPrivate,
+                owner: facility.owner,
             }
         })
 

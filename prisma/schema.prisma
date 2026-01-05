@@ -28,6 +28,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   auditLogs     AuditLog[]
+  privateFacilities StorageFacility[] // 用户的私有设施
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -82,10 +83,17 @@ model StorageFacility {
   // Capacity Configuration
   totalRacks  Int      // How many racks this facility holds
   
+  // 私有库所有权
+  ownerId     String?              // 私有库所有者 ID, null = 公共库
+  owner       User?    @relation(fields: [ownerId], references: [id])
+  isPrivate   Boolean  @default(false) // true = 私有库
+  
   racks       Rack[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  @@index([ownerId])
 }
 
 // Level 2: The physical rack or frame inside the facility

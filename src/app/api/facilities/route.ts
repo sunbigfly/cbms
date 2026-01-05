@@ -1,15 +1,29 @@
 // Facility CRUD API
 // POST /api/facilities - Create a new facility
-// GET /api/facilities - Get all facilities
+// GET /api/facilities - Get all facilities (supports ?private=true for private libraries)
 // PUT /api/facilities - Update a facility
 // DELETE /api/facilities - Delete a facility
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createFacility, getFacilities, updateFacility, deleteFacility, canDeleteFacility } from '@/server/db/facility'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { createFacility, getFacilities, updateFacility, deleteFacility, canDeleteFacility, canAccessFacility } from '@/server/db/facility'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const facilities = await getFacilities()
+        const session = await getServerSession(authOptions)
+        if (!session?.user) {
+            return NextResponse.json({ error: '未登录' }, { status: 401 })
+        }
+
+        const { searchParams } = new URL(request.url)
+        const privateMode = searchParams.get('private') === 'true'
+
+        const facilities = await getFacilities({
+            privateMode,
+            userId: session.user.id,
+            isAdmin: session.user.role === 'ADMIN'
+        })
         return NextResponse.json(facilities)
     } catch (error) {
         console.error('Error fetching facilities:', error)
@@ -22,6 +36,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
+        const session = await getServerSession(authOptions)
+        if (!session?.user) {
+            return NextResponse.json({ error: '未登录' }, { status: 401 })
+        }
+
         const body = await request.json()
 
         // Support both form field names (rackCount) and API field names (totalRacks)
@@ -32,6 +51,7 @@ export async function POST(request: NextRequest) {
         const shelvesPerRack = body.shelvesPerRack
         const boxRows = body.boxRows
         const boxCols = body.boxCols
+        const isPrivate = body.isPrivate === true
 
         // Validate required fields
         if (!name || !type || !totalRacks || !shelvesPerRack || !boxRows || !boxCols) {
@@ -41,6 +61,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // 创建私有库时设置所有者
         const facility = await createFacility({
             name,
             type,
@@ -50,12 +71,14 @@ export async function POST(request: NextRequest) {
             defaultBoxRows: boxRows,
             defaultBoxColumns: boxCols,
             gridType: 'ALPHANUMERIC',
+            ownerId: isPrivate ? session.user.id : undefined,
+            isPrivate,
         })
 
         return NextResponse.json({
             success: true,
             facility,
-            message: `设施 "${name}" 创建成功`,
+            message: `${isPrivate ? '私有' : ''}设施 "${name}" 创建成功`,
         })
     } catch (error) {
         console.error('Error creating facility:', error)
@@ -68,11 +91,22 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
     try {
+        const session = await getServerSession(authOptions)
+        if (!session?.user) {
+            return NextResponse.json({ error: '未登录' }, { status: 401 })
+        }
+
         const body = await request.json()
         const { id, name, type, description } = body
 
         if (!id) {
             return NextResponse.json({ error: '缺少设施 ID' }, { status: 400 })
+        }
+
+        // 检查权限
+        const hasAccess = await canAccessFacility(id, session.user.id, session.user.role === 'ADMIN')
+        if (!hasAccess) {
+            return NextResponse.json({ error: '无权访问该设施' }, { status: 403 })
         }
 
         const facility = await updateFacility(id, { name, type, description })
@@ -88,11 +122,22 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        const session = await getServerSession(authOptions)
+        if (!session?.user) {
+            return NextResponse.json({ error: '未登录' }, { status: 401 })
+        }
+
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')
 
         if (!id) {
             return NextResponse.json({ error: '缺少设施 ID' }, { status: 400 })
+        }
+
+        // 检查权限
+        const hasAccess = await canAccessFacility(id, session.user.id, session.user.role === 'ADMIN')
+        if (!hasAccess) {
+            return NextResponse.json({ error: '无权删除该设施' }, { status: 403 })
         }
 
         // Check if can delete

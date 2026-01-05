@@ -8,18 +8,72 @@ import type { Prisma } from '@prisma/client'
 // Facility CRUD
 // ============================================
 
-export async function getFacilities() {
+// 获取设施列表
+// options.privateMode = true: 获取私有库（用户只能看自己的，管理员能看所有）
+// options.privateMode = false: 获取公共库
+export async function getFacilities(options?: {
+    privateMode?: boolean
+    userId?: string
+    isAdmin?: boolean
+}) {
+    const where: Prisma.StorageFacilityWhereInput = {}
+
+    if (options?.privateMode) {
+        // 私有库模式
+        where.isPrivate = true
+        if (!options.isAdmin) {
+            // 普通用户只能看自己的
+            where.ownerId = options.userId
+        }
+        // 管理员可以看所有私有库
+    } else {
+        // 公共库模式
+        where.isPrivate = false
+    }
+
     return prisma.storageFacility.findMany({
+        where,
         include: {
             _count: {
                 select: { racks: true },
             },
+            owner: {
+                select: { id: true, name: true, email: true }
+            }
         },
         orderBy: { name: 'asc' },
     })
 }
 
+// 检查用户是否有权访问指定设施
+// 公共库：所有人可访问
+// 私有库：所有者或管理员可访问
+export async function canAccessFacility(
+    facilityId: string,
+    userId: string,
+    isAdmin: boolean
+): Promise<boolean> {
+    const facility = await prisma.storageFacility.findUnique({
+        where: { id: facilityId },
+        select: { isPrivate: true, ownerId: true }
+    })
+
+    if (!facility) return false
+    if (!facility.isPrivate) return true  // 公共库所有人可访问
+    if (isAdmin) return true              // 管理员可访问所有私有库
+    return facility.ownerId === userId    // 私有库只有所有者可访问
+}
+
+// 获取设施所有权信息
+export async function getFacilityOwnership(facilityId: string) {
+    return prisma.storageFacility.findUnique({
+        where: { id: facilityId },
+        select: { isPrivate: true, ownerId: true }
+    })
+}
+
 export async function getFacilityById(id: string) {
+
     return prisma.storageFacility.findUnique({
         where: { id },
         include: {
@@ -106,8 +160,11 @@ export async function createFacility(data: {
     defaultBoxRows: number
     defaultBoxColumns: number
     gridType: string
+    // 私有库支持
+    ownerId?: string
+    isPrivate?: boolean
 }) {
-    const { name, type, description, totalRacks, shelvesPerRack, defaultBoxRows, defaultBoxColumns, gridType } = data
+    const { name, type, description, totalRacks, shelvesPerRack, defaultBoxRows, defaultBoxColumns, gridType, ownerId, isPrivate = false } = data
 
     // Generate slots for a box
     const generateSlots = (rows: number, cols: number): Prisma.SlotCreateWithoutBoxInput[] => {
@@ -133,6 +190,8 @@ export async function createFacility(data: {
             type,
             description,
             totalRacks,
+            ownerId,
+            isPrivate,
             racks: {
                 create: Array.from({ length: totalRacks }, (_, rackIndex) => ({
                     name: `Rack ${String(rackIndex + 1).padStart(2, '0')}`,
