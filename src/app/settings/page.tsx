@@ -158,7 +158,7 @@ export default function SettingsPage() {
         }
     }, [])
 
-    // 获取私有设施列表（员工）
+    // 获取私有细胞库列表（员工）
     const fetchPrivateFacilities = useCallback(async () => {
         try {
             setPrivateLoading(true)
@@ -190,7 +190,7 @@ export default function SettingsPage() {
         if (isAdmin) {
             fetchFacilities()
         }
-        // 员工和管理员都可以获取私有设施列表
+        // 员工和管理员都可以获取私有细胞库列表
         fetchPrivateFacilities()
     }, [fetchFacilities, fetchPrivateFacilities, isAdmin])
 
@@ -282,7 +282,7 @@ export default function SettingsPage() {
                 body: JSON.stringify({ id: editingFacility.id, ...editFormData }),
             })
             if (res.ok) {
-                toast({ title: '更新成功', description: '设施信息已更新' })
+                toast({ title: '更新成功', description: '细胞库信息已更新' })
                 setEditDialogOpen(false)
                 fetchFacilities()
             } else {
@@ -319,7 +319,7 @@ export default function SettingsPage() {
         try {
             const res = await fetch(`/api/facilities?id=${deletingFacility.id}`, { method: 'DELETE' })
             if (res.ok) {
-                toast({ title: '删除成功', description: '设施已删除' })
+                toast({ title: '删除成功', description: '细胞库已删除' })
                 setDeleteDialogOpen(false)
                 fetchFacilities()
             } else {
@@ -460,7 +460,7 @@ export default function SettingsPage() {
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold">{isAdmin ? '系统设置' : '我的设置'}</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        {isAdmin ? '管理设施配置和用户权限' : '管理您的私有细胞库'}
+                        {isAdmin ? '管理细胞库配置和用户权限' : '管理您的私有细胞库'}
                     </p>
                 </div>
 
@@ -470,7 +470,7 @@ export default function SettingsPage() {
                             <>
                                 <TabsTrigger value="facilities" className="gap-2">
                                     <Database className="h-4 w-4" />
-                                    设施管理
+                                    细胞库管理
                                 </TabsTrigger>
                                 <TabsTrigger value="users" className="gap-2">
                                     <Users className="h-4 w-4" />
@@ -494,21 +494,21 @@ export default function SettingsPage() {
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <CardTitle>存储设施</CardTitle>
+                                            <CardTitle>存储细胞库</CardTitle>
                                             <CardDescription>管理冷冻库和液氮罐配置</CardDescription>
                                         </div>
                                         <Dialog open={facilityDialogOpen} onOpenChange={setFacilityDialogOpen}>
                                             <DialogTrigger asChild>
                                                 <Button>
                                                     <Plus className="mr-2 h-4 w-4" />
-                                                    新增设施
+                                                    新增细胞库
                                                 </Button>
                                             </DialogTrigger>
                                             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                                                 <DialogHeader>
-                                                    <DialogTitle>创建新设施</DialogTitle>
+                                                    <DialogTitle>创建新细胞库</DialogTitle>
                                                     <DialogDescription>
-                                                        按步骤配置您的存储设施
+                                                        按步骤配置您的存储细胞库
                                                     </DialogDescription>
                                                 </DialogHeader>
                                                 <CreateFacilityWizard onSuccess={handleFacilitySuccess} />
@@ -525,7 +525,7 @@ export default function SettingsPage() {
                                             </div>
                                         ) : facilities.length === 0 ? (
                                             <div className="text-center py-8 text-muted-foreground">
-                                                暂无设施，点击&quot;新增设施&quot;开始创建
+                                                暂无细胞库，点击&quot;新增细胞库&quot;开始创建
                                             </div>
                                         ) : (
                                             facilities.map((facility) => (
@@ -543,7 +543,7 @@ export default function SettingsPage() {
                                                             <div>
                                                                 <p className="font-medium">{facility.name}</p>
                                                                 <p className="text-sm text-muted-foreground">
-                                                                    {facility.type} | {facility.totalRacks} 货架
+                                                                    {facility.type} | {facility.totalRacks} 扇/提
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -750,20 +750,20 @@ export default function SettingsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <CardTitle>我的私有细胞库</CardTitle>
-                                        <CardDescription>管理您自己的私有存储设施</CardDescription>
+                                        <CardDescription>管理您自己的私有存储细胞库</CardDescription>
                                     </div>
                                     <Dialog open={privateFacilityDialogOpen} onOpenChange={setPrivateFacilityDialogOpen}>
                                         <DialogTrigger asChild>
                                             <Button>
                                                 <Plus className="mr-2 h-4 w-4" />
-                                                新增私有设施
+                                                新增私有细胞库
                                             </Button>
                                         </DialogTrigger>
                                         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                                             <DialogHeader>
-                                                <DialogTitle>创建私有设施</DialogTitle>
+                                                <DialogTitle>创建私有细胞库</DialogTitle>
                                                 <DialogDescription>
-                                                    按步骤配置您的私有存储设施
+                                                    按步骤配置您的私有存储细胞库
                                                 </DialogDescription>
                                             </DialogHeader>
                                             <CreateFacilityWizard forcePrivate={true} onSuccess={handlePrivateFacilitySuccess} />
@@ -780,7 +780,7 @@ export default function SettingsPage() {
                                         </div>
                                     ) : privateFacilities.length === 0 ? (
                                         <div className="text-center py-8 text-muted-foreground">
-                                            暂无私有设施，点击&quot;新增私有设施&quot;开始创建
+                                            暂无私有细胞库，点击&quot;新增私有细胞库&quot;开始创建
                                         </div>
                                     ) : (
                                         privateFacilities.map((facility) => (
@@ -798,7 +798,7 @@ export default function SettingsPage() {
                                                         <div>
                                                             <p className="font-medium">{facility.name}</p>
                                                             <p className="text-sm text-muted-foreground">
-                                                                {facility.type} | {facility.totalRacks} 货架
+                                                                {facility.type} | {facility.totalRacks} 扇/提
                                                             </p>
                                                         </div>
                                                     </div>
@@ -921,19 +921,19 @@ export default function SettingsPage() {
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>编辑设施</DialogTitle>
-                        <DialogDescription>修改设施基本信息</DialogDescription>
+                        <DialogTitle>编辑细胞库</DialogTitle>
+                        <DialogDescription>修改细胞库基本信息</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>设施名称</Label>
+                            <Label>细胞库名称</Label>
                             <Input
                                 value={editFormData.name}
                                 onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>设施类型</Label>
+                            <Label>细胞库类型</Label>
                             <Select
                                 value={editFormData.type}
                                 onValueChange={(value) => setEditFormData(prev => ({ ...prev, type: value }))}
@@ -972,8 +972,8 @@ export default function SettingsPage() {
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             {canDelete
-                                ? `确定要删除设施 "${deletingFacility?.name}" 吗？此操作不可撤销。`
-                                : `设施 "${deletingFacility?.name}" 内还有 ${sampleCount} 个细胞样本，无法删除。请先清空设施内的样本。`
+                                ? `确定要删除细胞库 "${deletingFacility?.name}" 吗？此操作不可撤销。`
+                                : `细胞库 "${deletingFacility?.name}" 内还有 ${sampleCount} 个细胞样本，无法删除。请先清空细胞库内的样本。`
                             }
                         </AlertDialogDescription>
                     </AlertDialogHeader>

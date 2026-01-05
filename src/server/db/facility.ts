@@ -8,7 +8,7 @@ import type { Prisma } from '@prisma/client'
 // Facility CRUD
 // ============================================
 
-// 获取设施列表
+// 获取细胞库列表
 // options.privateMode = true: 获取私有库（用户只能看自己的，管理员能看所有）
 // options.privateMode = false: 获取公共库
 export async function getFacilities(options?: {
@@ -45,7 +45,7 @@ export async function getFacilities(options?: {
     })
 }
 
-// 检查用户是否有权访问指定设施
+// 检查用户是否有权访问指定细胞库
 // 公共库：所有人可访问
 // 私有库：所有者或管理员可访问
 export async function canAccessFacility(
@@ -64,7 +64,7 @@ export async function canAccessFacility(
     return facility.ownerId === userId    // 私有库只有所有者可访问
 }
 
-// 获取设施所有权信息
+// 获取细胞库所有权信息
 export async function getFacilityOwnership(facilityId: string) {
     return prisma.storageFacility.findUnique({
         where: { id: facilityId },
@@ -348,7 +348,7 @@ export async function canDeleteFacility(id: string): Promise<{ canDelete: boolea
     })
 
     if (sampleCount > 0) {
-        return { canDelete: false, reason: `设施内还有 ${sampleCount} 个细胞样本`, sampleCount }
+        return { canDelete: false, reason: `细胞库内还有 ${sampleCount} 个细胞样本`, sampleCount }
     }
     return { canDelete: true, sampleCount: 0 }
 }

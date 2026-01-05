@@ -133,7 +133,7 @@ export function MoveTargetSelector({ open, onOpenChange, sample, onConfirm }: Mo
                         <div className="space-y-2">
                             <Label className="flex items-center gap-2">
                                 <Database className="h-4 w-4" />
-                                选择设施
+                                选择细胞库
                             </Label>
                             <Select value={selectedFacility} onValueChange={(v) => {
                                 setSelectedFacility(v)
@@ -142,7 +142,7 @@ export function MoveTargetSelector({ open, onOpenChange, sample, onConfirm }: Mo
                                 setSelectedSlot('')
                             }}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="选择设施" />
+                                    <SelectValue placeholder="选择细胞库" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {demoFacilities.map((f) => (
@@ -155,14 +155,14 @@ export function MoveTargetSelector({ open, onOpenChange, sample, onConfirm }: Mo
                         {/* Rack */}
                         {selectedFacility && (
                             <div className="space-y-2">
-                                <Label>选择货架</Label>
+                                <Label>选择扇/提</Label>
                                 <Select value={selectedRack} onValueChange={(v) => {
                                     setSelectedRack(v)
                                     setSelectedBox('')
                                     setSelectedSlot('')
                                 }}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="选择货架" />
+                                        <SelectValue placeholder="选择扇/提" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {availableRacks.map((r) => (

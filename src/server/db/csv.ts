@@ -23,8 +23,8 @@ const CSV_HEADERS = [
     '保存液',
     '负责人',
     '备注',
-    '设施名称',
-    '货架代码',
+    '细胞库名称',
+    '扇/提代码',
     '层名称',
     '盒子名称',
     '行',
@@ -44,8 +44,8 @@ const FIELD_MAP = {
     '保存液': 'media',
     '负责人': 'owner',
     '备注': 'notes',
-    '设施名称': 'facilityName',
-    '货架代码': 'rackCode',
+    '细胞库名称': 'facilityName',
+    '扇/提代码': 'rackCode',
     '层名称': 'shelfName',
     '盒子名称': 'boxName',
     '行': 'row',
@@ -314,7 +314,7 @@ export async function validateCSVData(
         }
 
         // Required field validation
-        const requiredFields = ['样本名称', '细胞类型', '数量', '单位', '浓度', '活力', '代次', '负责人', '设施名称', '货架代码', '层名称', '盒子名称', '行', '列']
+        const requiredFields = ['样本名称', '细胞类型', '数量', '单位', '浓度', '活力', '代次', '负责人', '细胞库名称', '扇/提代码', '层名称', '盒子名称', '行', '列']
 
         for (const field of requiredFields) {
             if (!getValue(field)) {
@@ -347,8 +347,8 @@ export async function validateCSVData(
                 media: getValue('保存液') || undefined,
                 owner: getValue('负责人'),
                 notes: getValue('备注') || undefined,
-                facilityName: getValue('设施名称'),
-                rackCode: getValue('货架代码'),
+                facilityName: getValue('细胞库名称'),
+                rackCode: getValue('扇/提代码'),
                 shelfName: getValue('层名称'),
                 boxName: getValue('盒子名称'),
                 row: getValue('行'),

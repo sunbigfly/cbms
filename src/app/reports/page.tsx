@@ -200,12 +200,12 @@ export default function ReportsPage() {
                                 <PieChart className="h-5 w-5 text-primary" />
                                 容量概览
                             </CardTitle>
-                            <CardDescription>各设施存储使用情况</CardDescription>
+                            <CardDescription>各细胞库存储使用情况</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {facilities.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
-                                    暂无设施数据
+                                    暂无细胞库数据
                                 </div>
                             ) : (
                                 <div className="space-y-4">

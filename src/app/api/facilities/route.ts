@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error('Error fetching facilities:', error)
         return NextResponse.json(
-            { error: '获取设施列表失败' },
+            { error: '获取细胞库列表失败' },
             { status: 500 }
         )
     }
@@ -78,12 +78,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             facility,
-            message: `${isPrivate ? '私有' : ''}设施 "${name}" 创建成功`,
+            message: `${isPrivate ? '私有' : ''}细胞库 "${name}" 创建成功`,
         })
     } catch (error) {
         console.error('Error creating facility:', error)
         return NextResponse.json(
-            { error: '创建设施失败', details: error instanceof Error ? error.message : '未知错误' },
+            { error: '创建细胞库失败', details: error instanceof Error ? error.message : '未知错误' },
             { status: 500 }
         )
     }
@@ -100,21 +100,21 @@ export async function PUT(request: NextRequest) {
         const { id, name, type, description } = body
 
         if (!id) {
-            return NextResponse.json({ error: '缺少设施 ID' }, { status: 400 })
+            return NextResponse.json({ error: '缺少细胞库 ID' }, { status: 400 })
         }
 
         // 检查权限
         const hasAccess = await canAccessFacility(id, session.user.id, session.user.role === 'ADMIN')
         if (!hasAccess) {
-            return NextResponse.json({ error: '无权访问该设施' }, { status: 403 })
+            return NextResponse.json({ error: '无权访问该细胞库' }, { status: 403 })
         }
 
         const facility = await updateFacility(id, { name, type, description })
-        return NextResponse.json({ success: true, facility, message: '设施更新成功' })
+        return NextResponse.json({ success: true, facility, message: '细胞库更新成功' })
     } catch (error) {
         console.error('Error updating facility:', error)
         return NextResponse.json(
-            { error: '更新设施失败', details: error instanceof Error ? error.message : '未知错误' },
+            { error: '更新细胞库失败', details: error instanceof Error ? error.message : '未知错误' },
             { status: 500 }
         )
     }
@@ -131,13 +131,13 @@ export async function DELETE(request: NextRequest) {
         const id = searchParams.get('id')
 
         if (!id) {
-            return NextResponse.json({ error: '缺少设施 ID' }, { status: 400 })
+            return NextResponse.json({ error: '缺少细胞库 ID' }, { status: 400 })
         }
 
         // 检查权限
         const hasAccess = await canAccessFacility(id, session.user.id, session.user.role === 'ADMIN')
         if (!hasAccess) {
-            return NextResponse.json({ error: '无权删除该设施' }, { status: 403 })
+            return NextResponse.json({ error: '无权删除该细胞库' }, { status: 403 })
         }
 
         // Check if can delete
@@ -151,11 +151,11 @@ export async function DELETE(request: NextRequest) {
         }
 
         await deleteFacility(id)
-        return NextResponse.json({ success: true, message: '设施删除成功' })
+        return NextResponse.json({ success: true, message: '细胞库删除成功' })
     } catch (error) {
         console.error('Error deleting facility:', error)
         return NextResponse.json(
-            { error: '删除设施失败', details: error instanceof Error ? error.message : '未知错误' },
+            { error: '删除细胞库失败', details: error instanceof Error ? error.message : '未知错误' },
             { status: 500 }
         )
     }

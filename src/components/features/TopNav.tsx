@@ -29,7 +29,7 @@ import {
 // 导航项配置，adminOnly 标记仅管理员可见
 const navItems = [
     { href: '/', label: '首页', icon: LayoutDashboard, adminOnly: false },
-    { href: '/inventory', label: '细胞数据详情', icon: Database, adminOnly: false },
+    { href: '/inventory', label: '细胞库', icon: Database, adminOnly: false },
     { href: '/audit', label: '历史记录', icon: History, adminOnly: false },
     { href: '/reports', label: '报表', icon: BarChart3, adminOnly: false },
     { href: '/settings', label: '系统设置', icon: Settings, adminOnly: false },

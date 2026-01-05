@@ -93,11 +93,11 @@ export default function DashboardPage() {
 
   const statsCards = stats ? [
     {
-      title: '总设施数',
+      title: '总细胞库数',
       value: String(stats.facilitiesCount),
       description: '冷冻库/液氮罐',
       icon: Database,
-      trend: `${stats.facilitiesCount} 个设施`,
+      trend: `${stats.facilitiesCount} 个细胞库`,
       color: 'text-primary',
     },
     {
@@ -249,14 +249,14 @@ export default function DashboardPage() {
           {/* Quick Access - Facilities */}
           <Card>
             <CardHeader>
-              <CardTitle>设施概览</CardTitle>
-              <CardDescription>点击进入设施管理</CardDescription>
+              <CardTitle>细胞库概览</CardTitle>
+              <CardDescription>点击进入细胞库管理</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3">
                 {facilities.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    暂无设施，请先创建
+                    暂无细胞库，请先创建
                   </div>
                 ) : (
                   facilities.map((facility) => (
@@ -289,7 +289,7 @@ export default function DashboardPage() {
               </div>
               <Button variant="outline" className="w-full mt-4" asChild>
                 <Link href="/settings">
-                  管理设施
+                  管理细胞库
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>

@@ -14,12 +14,12 @@ import {
 
 // Map paths to labels
 const pathLabels: Record<string, string> = {
-    inventory: '细胞数据详情',
+    inventory: '细胞库',
     audit: '历史记录',
     reports: '报表',
     settings: '系统设置',
-    facility: '设施',
-    rack: '货架',
+    facility: '细胞库',
+    rack: '扇/提',
     shelf: '层架',
     box: '冻存盒',
 }

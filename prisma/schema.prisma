@@ -28,7 +28,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   auditLogs     AuditLog[]
-  privateFacilities StorageFacility[] // 用户的私有设施
+  privateFacilities StorageFacility[] // 用户的私有细胞库
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

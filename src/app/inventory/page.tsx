@@ -767,11 +767,11 @@ export default function InventoryPage() {
                                     <TabsList className="w-full">
                                         <TabsTrigger value="facility" className="flex-1 gap-1">
                                             <Building2 className="h-4 w-4" />
-                                            设施
+                                            细胞库
                                         </TabsTrigger>
                                         <TabsTrigger value="rack" className="flex-1 gap-1" disabled={!selectedFacility}>
                                             <LayoutGrid className="h-4 w-4" />
-                                            货架
+                                            扇/提
                                         </TabsTrigger>
                                         <TabsTrigger value="box" className="flex-1 gap-1" disabled={!selectedRack}>
                                             <Package className="h-4 w-4" />
@@ -783,7 +783,7 @@ export default function InventoryPage() {
                                     {/* Facility List */}
                                     <TabsContent value="facility" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
                                         {facilities.length === 0 ? (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无设施</div>
+                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无细胞库</div>
                                         ) : (
                                             facilities.map((facility) => (
                                                 <div
@@ -799,7 +799,7 @@ export default function InventoryPage() {
                                                         <div>
                                                             <p className="font-medium text-sm">{facility.name}</p>
                                                             <p className={`text-xs ${selectedFacility?.id === facility.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                                {facility.type} | {facility.racks} 货架
+                                                                {facility.type} | {facility.racks} 扇/提
                                                             </p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -821,7 +821,7 @@ export default function InventoryPage() {
                                             {selectedFacility?.name}
                                         </div>
                                         {racks.length === 0 ? (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无货架</div>
+                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无扇/提</div>
                                         ) : (
                                             racks.map((rack) => (
                                                 <div

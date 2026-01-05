@@ -37,11 +37,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Plus, Database, ArrowRight, ArrowLeft, Check, Lock } from 'lucide-react'
 
 const facilitySchema = z.object({
-    name: z.string().min(1, '请输入设施名称'),
-    type: z.string().min(1, '请选择设施类型'),
+    name: z.string().min(1, '请输入细胞库名称'),
+    type: z.string().min(1, '请选择细胞库类型'),
     description: z.string().optional(),
     isPrivate: z.boolean().default(false),
-    rackCount: z.coerce.number().min(1, '至少需要1个货架').max(20, '最多20个货架'),
+    rackCount: z.coerce.number().min(1, '至少需要1个扇/提').max(20, '最多20个扇/提'),
     shelvesPerRack: z.coerce.number().min(1, '至少需要1层').max(10, '最多10层'),
     boxesPerShelf: z.coerce.number().min(1, '至少需要1个盒子').max(10, '最多10个盒子'),
     boxRows: z.coerce.number().min(1, '至少1行').max(15, '最多15行'),
@@ -136,14 +136,14 @@ export function CreateFacilityWizard({ onSuccess, forcePrivate = false }: Create
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    新增设施
+                    新增细胞库
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Database className="h-5 w-5 text-primary" />
-                        创建存储设施
+                        创建存储细胞库
                     </DialogTitle>
                     <DialogDescription>
                         {step === 1 && '第一步：填写基本信息'}
@@ -172,7 +172,7 @@ export function CreateFacilityWizard({ onSuccess, forcePrivate = false }: Create
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>设施名称 *</FormLabel>
+                                            <FormLabel>细胞库名称 *</FormLabel>
                                             <FormControl>
                                                 <Input placeholder="如: Master Cell Bank" {...field} />
                                             </FormControl>
@@ -186,7 +186,7 @@ export function CreateFacilityWizard({ onSuccess, forcePrivate = false }: Create
                                     name="type"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>设施类型 *</FormLabel>
+                                            <FormLabel>细胞库类型 *</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
@@ -258,7 +258,7 @@ export function CreateFacilityWizard({ onSuccess, forcePrivate = false }: Create
                                         name="rackCount"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>货架数</FormLabel>
+                                                <FormLabel>扇/提数</FormLabel>
                                                 <FormControl>
                                                     <Input type="number" min="1" max="20" {...field} />
                                                 </FormControl>
@@ -336,11 +336,11 @@ export function CreateFacilityWizard({ onSuccess, forcePrivate = false }: Create
                                 <Card>
                                     <CardContent className="pt-4 space-y-3">
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">设施名称</span>
+                                            <span className="text-muted-foreground">细胞库名称</span>
                                             <span className="font-medium">{watchedValues.name}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-muted-foreground">设施类型</span>
+                                            <span className="text-muted-foreground">细胞库类型</span>
                                             <Badge variant="outline">
                                                 {facilityTypes.find(t => t.value === watchedValues.type)?.label}
                                             </Badge>

@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         if (facilityId) {
             const hasAccess = await canAccessFacility(facilityId, userId, isAdmin)
             if (!hasAccess) {
-                return NextResponse.json({ error: '无权访问该设施' }, { status: 403 })
+                return NextResponse.json({ error: '无权访问该细胞库' }, { status: 403 })
             }
 
             const racks = await prisma.rack.findMany({
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
             if (rack?.facility) {
                 const hasAccess = await canAccessFacility(rack.facility.id, userId, isAdmin)
                 if (!hasAccess) {
-                    return NextResponse.json({ error: '无权访问该货架' }, { status: 403 })
+                    return NextResponse.json({ error: '无权访问该扇/提' }, { status: 403 })
                 }
             }
 
