@@ -11,6 +11,7 @@ import { BatchCheckInDialog } from '@/components/features/BatchCheckInDialog'
 import { BatchCheckOutDialog } from '@/components/features/BatchCheckOutDialog'
 import { BatchEditDialog } from '@/components/features/BatchEditDialog'
 import { SlotDetailPanel, SampleDetail } from '@/components/features/SlotDetailPanel'
+import { LibrarySwitch, LibraryMode } from '@/components/features/LibrarySwitch'
 import {
     ChevronRight,
     Plus,
@@ -455,6 +456,7 @@ type NavigationLevel = 'facility' | 'rack' | 'box'
 export default function InventoryPage() {
     const [loading, setLoading] = useState(true)
     const [currentLevel, setCurrentLevel] = useState<NavigationLevel>('facility')
+    const [libraryMode, setLibraryMode] = useState<LibraryMode>('public')
 
     // Data
     const [facilities, setFacilities] = useState<Facility[]>([])
@@ -520,11 +522,13 @@ export default function InventoryPage() {
         }
     }, [])
 
-    // Fetch facilities on mount
+    // Fetch facilities on mount or when library mode changes
     useEffect(() => {
         async function fetchFacilities() {
+            setLoading(true)
             try {
-                const res = await fetch('/api/inventory')
+                const privateParam = libraryMode === 'private' ? '?private=true' : ''
+                const res = await fetch(`/api/inventory${privateParam}`)
                 if (res.ok) {
                     const data = await res.json()
                     setFacilities(data.facilities || [])
@@ -535,8 +539,14 @@ export default function InventoryPage() {
                 setLoading(false)
             }
         }
+        // Reset selections when switching modes
+        setSelectedFacility(null)
+        setSelectedRack(null)
+        setSelectedBox(null)
+        setBoxDetail(null)
+        setCurrentLevel('facility')
         fetchFacilities()
-    }, [])
+    }, [libraryMode])
 
     // Fetch racks
     const fetchRacks = useCallback(async (facilityId: string) => {
@@ -694,8 +704,9 @@ export default function InventoryPage() {
             <TopNav />
 
             <main className="container mx-auto px-4 py-6">
-                <div className="mb-6">
+                <div className="mb-6 flex items-center justify-between">
                     <Breadcrumbs />
+                    <LibrarySwitch value={libraryMode} onChange={setLibraryMode} />
                 </div>
 
                 {/* Two Column Layout: Left Navigation + Right Grid */}

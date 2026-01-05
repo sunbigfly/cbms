@@ -33,12 +33,14 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Plus, Database, ArrowRight, ArrowLeft, Check } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Plus, Database, ArrowRight, ArrowLeft, Check, Lock } from 'lucide-react'
 
 const facilitySchema = z.object({
     name: z.string().min(1, '请输入设施名称'),
     type: z.string().min(1, '请选择设施类型'),
     description: z.string().optional(),
+    isPrivate: z.boolean().default(false),
     rackCount: z.coerce.number().min(1, '至少需要1个货架').max(20, '最多20个货架'),
     shelvesPerRack: z.coerce.number().min(1, '至少需要1层').max(10, '最多10层'),
     boxesPerShelf: z.coerce.number().min(1, '至少需要1个盒子').max(10, '最多10个盒子'),
@@ -70,6 +72,7 @@ export function CreateFacilityWizard({ onSuccess }: CreateFacilityWizardProps) {
             name: '',
             type: '',
             description: '',
+            isPrivate: false,
             rackCount: 4,
             shelvesPerRack: 5,
             boxesPerShelf: 1,
@@ -215,6 +218,30 @@ export function CreateFacilityWizard({ onSuccess }: CreateFacilityWizardProps) {
                                         </FormItem>
                                     )}
                                 />
+
+                                <FormField
+                                    control={form.control}
+                                    name="isPrivate"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel className="flex items-center gap-1.5">
+                                                    <Lock className="h-4 w-4" />
+                                                    创建为私有库
+                                                </FormLabel>
+                                                <FormDescription>
+                                                    私有库只有您自己可以访问，不会出现在公共库列表中
+                                                </FormDescription>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
                         )}
 
@@ -312,6 +339,12 @@ export function CreateFacilityWizard({ onSuccess }: CreateFacilityWizardProps) {
                                             <span className="text-muted-foreground">设施类型</span>
                                             <Badge variant="outline">
                                                 {facilityTypes.find(t => t.value === watchedValues.type)?.label}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">库类型</span>
+                                            <Badge variant={watchedValues.isPrivate ? 'default' : 'secondary'}>
+                                                {watchedValues.isPrivate ? '私有库' : '公共库'}
                                             </Badge>
                                         </div>
                                         <div className="flex justify-between">
