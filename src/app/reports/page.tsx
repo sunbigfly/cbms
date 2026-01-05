@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TopNav } from '@/components/features/TopNav'
+import { AppLayout } from '@/components/features/AppLayout'
 import { Breadcrumbs } from '@/components/features/Breadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -164,23 +164,20 @@ export default function ReportsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background">
-                <TopNav />
-                <main className="container mx-auto px-4 py-6 flex items-center justify-center min-h-[60vh]">
+            <AppLayout>
+                <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="h-6 w-6 animate-spin" />
                         <span>加载中...</span>
                     </div>
-                </main>
-            </div>
+                </div>
+            </AppLayout>
         )
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <TopNav />
-
-            <main className="container mx-auto px-4 py-6">
+        <AppLayout>
+            <div className="container mx-auto px-4 py-6">
                 <div className="mb-6">
                     <Breadcrumbs />
                 </div>
@@ -319,7 +316,7 @@ export default function ReportsPage() {
                         </CardContent>
                     </Card>
                 </div>
-            </main>
-        </div>
+            </div>
+        </AppLayout>
     )
 }

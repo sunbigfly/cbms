@@ -1,0 +1,197 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
+import {
+    LayoutDashboard,
+    Database,
+    History,
+    BarChart3,
+    Settings,
+    FlaskConical,
+    LogOut,
+    ChevronLeft,
+    ChevronRight,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { useState } from 'react'
+
+// 导航项配置，adminOnly 标记仅管理员可见
+const navItems = [
+    { href: '/', label: '首页', icon: LayoutDashboard, adminOnly: false },
+    { href: '/inventory', label: '细胞数据详情', icon: Database, adminOnly: false },
+    { href: '/audit', label: '历史记录', icon: History, adminOnly: false },
+    { href: '/reports', label: '报表', icon: BarChart3, adminOnly: false },
+    { href: '/settings', label: '系统设置', icon: Settings, adminOnly: false },
+]
+
+export function SideNav() {
+    const pathname = usePathname()
+    const router = useRouter()
+    const { data: session, status } = useSession()
+    const [collapsed, setCollapsed] = useState(false)
+
+    // 判断是否是管理员
+    const isAdmin = session?.user?.role === 'ADMIN'
+
+    // 过滤导航项：非管理员隐藏 adminOnly 项
+    const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin)
+
+    const handleSignOut = async () => {
+        await signOut({ redirect: false })
+        router.push('/login')
+    }
+
+    // 获取用户显示名称
+    const userName = session?.user?.name || '用户'
+    const userInitial = userName[0].toUpperCase()
+
+    return (
+        <TooltipProvider delayDuration={0}>
+            <aside
+                className={cn(
+                    'sticky top-0 h-screen flex flex-col border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-300',
+                    collapsed ? 'w-16' : 'w-56'
+                )}
+            >
+                {/* Logo */}
+                <div className={cn(
+                    'flex items-center h-14 border-b px-3',
+                    collapsed ? 'justify-center' : 'gap-2'
+                )}>
+                    <FlaskConical className="h-6 w-6 text-primary flex-shrink-0" />
+                    {!collapsed && (
+                        <span className="font-semibold text-lg">CBMS</span>
+                    )}
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+                    {visibleNavItems.map((item) => {
+                        const Icon = item.icon
+                        const isActive = pathname === item.href ||
+                            (item.href !== '/' && pathname.startsWith(item.href))
+
+                        const linkContent = (
+                            <Link
+                                href={item.href}
+                                className={cn(
+                                    'flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors',
+                                    'hover:bg-accent hover:text-accent-foreground',
+                                    isActive
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'text-muted-foreground',
+                                    collapsed && 'justify-center px-2'
+                                )}
+                            >
+                                <Icon className="h-5 w-5 flex-shrink-0" />
+                                {!collapsed && <span>{item.label}</span>}
+                            </Link>
+                        )
+
+                        if (collapsed) {
+                            return (
+                                <Tooltip key={item.href}>
+                                    <TooltipTrigger asChild>
+                                        {linkContent}
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">
+                                        {item.label}
+                                    </TooltipContent>
+                                </Tooltip>
+                            )
+                        }
+
+                        return <div key={item.href}>{linkContent}</div>
+                    })}
+                </nav>
+
+                {/* Bottom Section: User & Collapse */}
+                <div className="border-t p-2 space-y-2">
+                    {/* User Info */}
+                    {status === 'authenticated' && (
+                        <div className={cn(
+                            'flex items-center gap-2 p-2 rounded-lg',
+                            collapsed ? 'justify-center' : ''
+                        )}>
+                            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium flex-shrink-0">
+                                {userInitial}
+                            </div>
+                            {!collapsed && (
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{userName}</p>
+                                    {isAdmin && (
+                                        <p className="text-xs text-primary">管理员</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Sign Out Button */}
+                    {status === 'authenticated' && (
+                        collapsed ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={handleSignOut}
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">退出登录</TooltipContent>
+                            </Tooltip>
+                        ) : (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={handleSignOut}
+                            >
+                                <LogOut className="h-4 w-4 mr-2" />
+                                退出登录
+                            </Button>
+                        )
+                    )}
+
+                    {/* Login Button (when not authenticated) */}
+                    {status !== 'authenticated' && (
+                        <Button variant="outline" size="sm" className="w-full" asChild>
+                            <Link href="/login">
+                                {collapsed ? '登' : '登录'}
+                            </Link>
+                        </Button>
+                    )}
+
+                    {/* Collapse Toggle */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn('w-full', collapsed ? 'justify-center' : 'justify-start')}
+                        onClick={() => setCollapsed(!collapsed)}
+                    >
+                        {collapsed ? (
+                            <ChevronRight className="h-4 w-4" />
+                        ) : (
+                            <>
+                                <ChevronLeft className="h-4 w-4 mr-2" />
+                                收起
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </aside>
+        </TooltipProvider>
+    )
+}

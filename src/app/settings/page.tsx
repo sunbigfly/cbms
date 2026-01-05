@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { TopNav } from '@/components/features/TopNav'
+import { AppLayout } from '@/components/features/AppLayout'
 import { Breadcrumbs } from '@/components/features/Breadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -440,22 +440,19 @@ export default function SettingsPage() {
     // 权限检查：非管理员显示无权限页面
     if (status === 'loading') {
         return (
-            <div className="min-h-screen bg-background">
-                <TopNav />
-                <main className="container mx-auto px-4 py-6 flex items-center justify-center">
+            <AppLayout>
+                <div className="flex items-center justify-center min-h-[60vh]">
                     <Loader2 className="h-8 w-8 animate-spin" />
-                </main>
-            </div>
+                </div>
+            </AppLayout>
         )
     }
 
     // 员工和管理员都可以访问设置页面，但显示不同的 Tab
 
     return (
-        <div className="min-h-screen bg-background">
-            <TopNav />
-
-            <main className="container mx-auto px-4 py-6">
+        <AppLayout>
+            <div className="container mx-auto px-4 py-6">
                 <div className="mb-6">
                     <Breadcrumbs />
                 </div>
@@ -918,7 +915,7 @@ export default function SettingsPage() {
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </main>
+            </div>
 
             {/* Edit Facility Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -1136,6 +1133,6 @@ export default function SettingsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </AppLayout>
     )
 }
