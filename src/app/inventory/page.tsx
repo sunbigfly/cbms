@@ -432,8 +432,8 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                         <TooltipTrigger asChild>
                                             <button
                                                 onClick={(e) => {
-                                                    // Only handle click if not dragging
-                                                    if (!isDragging && slotInfo) {
+                                                    // Always handle click (handleDragEnd will skip 1x1 drags)
+                                                    if (slotInfo) {
                                                         handleSlotClick(slotInfo, e)
                                                     }
                                                 }}
