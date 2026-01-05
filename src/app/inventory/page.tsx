@@ -16,6 +16,10 @@ import {
 } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { SampleEntryForm } from '@/components/features/SampleEntryForm'
+import { BatchCheckInDialog } from '@/components/features/BatchCheckInDialog'
+import { BatchCheckOutDialog } from '@/components/features/BatchCheckOutDialog'
+import { BatchEditDialog } from '@/components/features/BatchEditDialog'
+import { SlotDetailPanel, SampleDetail } from '@/components/features/SlotDetailPanel'
 import {
     ChevronRight,
     Plus,
@@ -24,7 +28,8 @@ import {
     LayoutGrid,
     Package,
 } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useSlotSelection, SlotInfo, SelectionType } from '@/hooks/useSlotSelection'
 
 // Types
 interface RackDetail {
@@ -83,6 +88,22 @@ interface Slot {
     } | null
 }
 
+// Extended sample with all fields for batch detection
+interface ExtendedSample {
+    id: string
+    name: string
+    type: string
+    batchNo?: string
+    quantity?: number
+    unit?: string
+    concentration?: string
+    viability?: number
+    passage?: string
+    media?: string
+    owner?: string
+    notes?: string
+}
+
 interface BoxDetail {
     id: string
     name: string
@@ -134,8 +155,139 @@ function ChildProgressBar({
     )
 }
 
-// Box Grid Component
-function BoxGrid({ box }: { box: BoxDetail | null }) {
+// Box Grid Component with Selection Support
+interface BoxGridProps {
+    box: BoxDetail | null
+    onCheckIn?: (slotIds: string[]) => void
+    onCheckOut?: (sampleIds: string[]) => void
+    onEdit?: (sampleIds: string[]) => void
+    onSampleSelect?: (sample: SlotInfo['sample'] | null, slotPosition: string, batchGroupSlotIds: string[]) => void
+}
+
+function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGridProps) {
+    const [showMixedError, setShowMixedError] = useState(false)
+
+    // Convert slots to SlotInfo format
+    const slotsInfo: SlotInfo[] = useMemo(() => {
+        if (!box) return []
+        return box.slots.map(slot => ({
+            id: slot.id,
+            position: slot.position,
+            rowLabel: slot.rowLabel,
+            colLabel: slot.colLabel,
+            status: slot.status as 'EMPTY' | 'OCCUPIED' | 'RESERVED',
+            sample: slot.sample ? {
+                id: slot.sample.id,
+                name: slot.sample.name,
+                type: slot.sample.type,
+                batchNo: (slot.sample as ExtendedSample).batchNo,
+                quantity: (slot.sample as ExtendedSample).quantity,
+                unit: (slot.sample as ExtendedSample).unit,
+                concentration: (slot.sample as ExtendedSample).concentration,
+                viability: (slot.sample as ExtendedSample).viability,
+                passage: (slot.sample as ExtendedSample).passage,
+                media: (slot.sample as ExtendedSample).media,
+                owner: (slot.sample as ExtendedSample).owner,
+                notes: (slot.sample as ExtendedSample).notes,
+            } : null
+        }))
+    }, [box])
+
+    const {
+        selectedSlots,
+        selectionType,
+        handleSlotClick,
+        clearSelection,
+        isSelected,
+        getSelectedSlotIds
+    } = useSlotSelection(
+        slotsInfo,
+        box?.columns || 0,
+        () => setShowMixedError(true)
+    )
+
+    // Note: onSelectionChange callback removed to prevent infinite render loop
+    // Selection state is used directly by action button handlers instead
+
+    // Track batch group for highlighting (slots with same sample properties)
+    const [batchGroupSlotIds, setBatchGroupSlotIds] = useState<Set<string>>(new Set())
+
+    // Find batch group when single occupied slot is selected
+    useEffect(() => {
+        if (selectedSlots.size === 1 && selectionType === 'occupied') {
+            const selectedId = Array.from(selectedSlots)[0]
+            const selectedSlot = slotsInfo.find(s => s.id === selectedId)
+            if (selectedSlot?.sample) {
+                // Find other slots with matching sample properties
+                const matchingSlotIds = slotsInfo
+                    .filter(s =>
+                        s.id !== selectedId &&
+                        s.sample &&
+                        s.sample.name === selectedSlot.sample!.name &&
+                        s.sample.type === selectedSlot.sample!.type &&
+                        s.sample.batchNo === selectedSlot.sample!.batchNo &&
+                        s.sample.quantity === selectedSlot.sample!.quantity &&
+                        s.sample.concentration === selectedSlot.sample!.concentration &&
+                        s.sample.viability === selectedSlot.sample!.viability &&
+                        s.sample.passage === selectedSlot.sample!.passage &&
+                        s.sample.media === selectedSlot.sample!.media &&
+                        s.sample.owner === selectedSlot.sample!.owner
+                    )
+                    .map(s => s.id)
+                setBatchGroupSlotIds(new Set(matchingSlotIds))
+
+                // Notify parent of selected sample
+                onSampleSelect?.(
+                    selectedSlot.sample,
+                    `${selectedSlot.rowLabel}${selectedSlot.colLabel}`,
+                    matchingSlotIds
+                )
+            } else {
+                setBatchGroupSlotIds(new Set())
+                onSampleSelect?.(null, '', [])
+            }
+        } else {
+            setBatchGroupSlotIds(new Set())
+            if (selectedSlots.size !== 1) {
+                onSampleSelect?.(null, '', [])
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedSlots, selectionType]) // Intentionally limited deps
+
+    // Hide mixed error after 3 seconds
+    useEffect(() => {
+        if (showMixedError) {
+            const timer = setTimeout(() => setShowMixedError(false), 3000)
+            return () => clearTimeout(timer)
+        }
+    }, [showMixedError])
+
+    // Handle action buttons
+    const handleCheckInClick = () => {
+        if (selectionType === 'empty' && onCheckIn) {
+            onCheckIn(getSelectedSlotIds())
+        }
+    }
+
+    const handleCheckOutClick = () => {
+        if (selectionType === 'occupied' && onCheckOut) {
+            const sampleIds = slotsInfo
+                .filter(s => selectedSlots.has(s.id) && s.sample)
+                .map(s => s.sample!.id)
+            onCheckOut(sampleIds)
+        }
+    }
+
+    const handleEditClick = () => {
+        if (selectionType === 'occupied' && onEdit) {
+            const sampleIds = slotsInfo
+                .filter(s => selectedSlots.has(s.id) && s.sample)
+                .map(s => s.sample!.id)
+            onEdit(sampleIds)
+        }
+    }
+
     if (!box) {
         return (
             <div className="flex items-center justify-center h-full min-h-[400px] text-muted-foreground">
@@ -152,8 +304,75 @@ function BoxGrid({ box }: { box: BoxDetail | null }) {
     const slotMap = new Map<number, Slot>()
     slots.forEach(slot => slotMap.set(slot.position, slot))
 
+    // Get slot style based on status, selection, and batch group
+    const getSlotStyle = (slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean) => {
+        const isOccupied = slot?.status === 'OCCUPIED'
+
+        // Batch group member (red border) - highest priority for non-selected
+        if (isBatchMember && !isSlotSelected) {
+            return 'bg-red-50 border-red-500 ring-2 ring-red-400'
+        }
+
+        if (isSlotSelected) {
+            return isOccupied
+                ? 'bg-yellow-100 border-yellow-500 ring-2 ring-yellow-500'
+                : 'bg-green-100 border-green-500 ring-2 ring-green-500'
+        }
+
+        return isOccupied
+            ? 'bg-primary border-primary/50 hover:bg-primary/80'
+            : 'bg-muted border-border hover:bg-accent'
+    }
+
     return (
         <div className="p-4">
+            {/* Mixed selection error toast */}
+            {showMixedError && (
+                <div className="mb-3 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+                    ⚠️ 无法同时选择空闲和已占用的槽位
+                </div>
+            )}
+
+            {/* Action Bar */}
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b">
+                <Button
+                    size="sm"
+                    variant={selectionType === 'empty' ? 'default' : 'outline'}
+                    disabled={selectionType !== 'empty'}
+                    onClick={handleCheckInClick}
+                >
+                    <Plus className="h-4 w-4 mr-1" />
+                    入库 {selectionType === 'empty' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
+                </Button>
+                <Button
+                    size="sm"
+                    variant={selectionType === 'occupied' ? 'destructive' : 'outline'}
+                    disabled={selectionType !== 'occupied'}
+                    onClick={handleCheckOutClick}
+                >
+                    出库 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={selectionType !== 'occupied'}
+                    onClick={handleEditClick}
+                >
+                    编辑 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
+                </Button>
+
+                {selectedSlots.size > 0 && (
+                    <Button size="sm" variant="ghost" onClick={clearSelection}>
+                        清除选择
+                    </Button>
+                )}
+
+                <div className="ml-auto text-xs text-muted-foreground">
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选 |{' '}
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选
+                </div>
+            </div>
+
             {/* Column headers */}
             <div className="flex gap-1 mb-1 ml-6">
                 {Array.from({ length: columns }, (_, i) => (
@@ -164,28 +383,47 @@ function BoxGrid({ box }: { box: BoxDetail | null }) {
             </div>
 
             {/* Grid with row labels */}
-            {Array.from({ length: rows }, (_, rowIndex) => (
-                <div key={rowIndex} className="flex gap-1 mb-1">
-                    <div className="w-5 h-8 flex items-center justify-center text-xs text-muted-foreground font-medium">
-                        {rowLabels[rowIndex]}
+            <TooltipProvider>
+                {Array.from({ length: rows }, (_, rowIndex) => (
+                    <div key={rowIndex} className="flex gap-1 mb-1">
+                        <div className="w-5 h-8 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                            {rowLabels[rowIndex]}
+                        </div>
+                        {Array.from({ length: columns }, (_, colIndex) => {
+                            const position = rowIndex * columns + colIndex + 1
+                            const slot = slotMap.get(position)
+                            const slotInfo = slotsInfo.find(s => s.position === position)
+                            const isOccupied = slot?.status === 'OCCUPIED'
+                            const isSlotSelected = slot ? isSelected(slot.id) : false
+                            const isBatchMember = slot ? batchGroupSlotIds.has(slot.id) : false
+
+                            return (
+                                <Tooltip key={colIndex}>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={(e) => slotInfo && handleSlotClick(slotInfo, e)}
+                                            className={`w-8 h-8 rounded-sm border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-[10px] font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember)}`}
+                                        >
+                                            {isOccupied && slot?.sample?.type?.slice(0, 2)}
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-[200px]">
+                                        <p className="font-medium">{rowLabels[rowIndex]}{colIndex + 1}</p>
+                                        {isOccupied && slot?.sample ? (
+                                            <div className="text-xs space-y-0.5 mt-1">
+                                                <p>样本: {slot.sample.name}</p>
+                                                <p>类型: {slot.sample.type}</p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground">空闲</p>
+                                        )}
+                                    </TooltipContent>
+                                </Tooltip>
+                            )
+                        })}
                     </div>
-                    {Array.from({ length: columns }, (_, colIndex) => {
-                        const position = rowIndex * columns + colIndex + 1
-                        const slot = slotMap.get(position)
-                        const isOccupied = slot?.status === 'OCCUPIED'
-                        return (
-                            <button
-                                key={colIndex}
-                                className={`w-8 h-8 rounded-sm border transition-all hover:scale-110 hover:z-10 ${isOccupied
-                                    ? 'bg-primary border-primary/50 hover:bg-primary/80'
-                                    : 'bg-muted border-border hover:bg-accent'
-                                    }`}
-                                title={`${rowLabels[rowIndex]}${colIndex + 1}${isOccupied ? ` - ${slot?.sample?.name || '已占用'}` : ' - 空'}`}
-                            />
-                        )
-                    })}
-                </div>
-            ))}
+                ))}
+            </TooltipProvider>
 
             {/* Legend */}
             <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
@@ -196,6 +434,18 @@ function BoxGrid({ box }: { box: BoxDetail | null }) {
                 <div className="flex items-center gap-1">
                     <div className="w-4 h-4 rounded-sm bg-muted border" />
                     <span>空闲</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 rounded-sm bg-green-100 border-2 border-green-500" />
+                    <span>空闲选中</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 rounded-sm bg-yellow-100 border-2 border-yellow-500" />
+                    <span>已占用选中</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 rounded-sm bg-red-50 border-2 border-red-500" />
+                    <span>同批次</span>
                 </div>
             </div>
         </div>
@@ -220,6 +470,58 @@ export default function InventoryPage() {
     const [selectedBox, setSelectedBox] = useState<BoxInfo | null>(null)
 
     const [sampleDialogOpen, setSampleDialogOpen] = useState(false)
+
+    // Dialog states for batch operations
+    const [checkInDialogOpen, setCheckInDialogOpen] = useState(false)
+    const [checkOutDialogOpen, setCheckOutDialogOpen] = useState(false)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([])
+    const [selectedSampleIds, setSelectedSampleIds] = useState<string[]>([])
+
+    // Callbacks for BoxGrid actions
+    const handleCheckIn = (slotIds: string[]) => {
+        setSelectedSlotIds(slotIds)
+        setCheckInDialogOpen(true)
+    }
+
+    const handleCheckOut = (sampleIds: string[]) => {
+        setSelectedSampleIds(sampleIds)
+        setCheckOutDialogOpen(true)
+    }
+
+    const handleEdit = (sampleIds: string[]) => {
+        setSelectedSampleIds(sampleIds)
+        setEditDialogOpen(true)
+    }
+
+    const handleDialogSuccess = () => {
+        // Refresh box detail after any operation
+        if (selectedBox) {
+            fetchBoxDetail(selectedBox.id)
+        }
+    }
+
+    // State for detail panel
+    const [selectedSample, setSelectedSample] = useState<SampleDetail | null>(null)
+    const [selectedSlotPosition, setSelectedSlotPosition] = useState<string>('')
+    const [batchGroupCount, setBatchGroupCount] = useState<number>(0)
+
+    // Callback for BoxGrid sample selection
+    const handleSampleSelect = useCallback((
+        sample: SlotInfo['sample'] | null,
+        slotPosition: string,
+        batchGroupSlotIds: string[]
+    ) => {
+        if (sample) {
+            setSelectedSample(sample as SampleDetail)
+            setSelectedSlotPosition(slotPosition)
+            setBatchGroupCount(batchGroupSlotIds.length)
+        } else {
+            setSelectedSample(null)
+            setSelectedSlotPosition('')
+            setBatchGroupCount(0)
+        }
+    }, [])
 
     // Fetch facilities on mount
     useEffect(() => {
@@ -419,7 +721,7 @@ export default function InventoryPage() {
                 <div className="grid gap-6 lg:grid-cols-12">
 
                     {/* LEFT: Tab Navigation */}
-                    <div className="lg:col-span-5">
+                    <div className="lg:col-span-3">
                         <Card className="h-full">
                             <Tabs value={currentLevel} onValueChange={(v) => setCurrentLevel(v as NavigationLevel)}>
                                 <CardHeader className="pb-0">
@@ -548,8 +850,8 @@ export default function InventoryPage() {
                         </Card>
                     </div>
 
-                    {/* RIGHT: Box Grid (Always Visible) */}
-                    <div className="lg:col-span-7">
+                    {/* CENTER: Box Grid */}
+                    <div className="lg:col-span-6">
                         <Card className="h-full">
                             <CardHeader className="pb-3">
                                 <div className="flex items-center justify-between">
@@ -569,12 +871,47 @@ export default function InventoryPage() {
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <BoxGrid box={boxDetail} />
+                                <BoxGrid
+                                    box={boxDetail}
+                                    onCheckIn={handleCheckIn}
+                                    onCheckOut={handleCheckOut}
+                                    onEdit={handleEdit}
+                                    onSampleSelect={handleSampleSelect}
+                                />
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* FAR RIGHT: Sample Detail Panel */}
+                    <div className="lg:col-span-3">
+                        <SlotDetailPanel
+                            sample={selectedSample}
+                            slotPosition={selectedSlotPosition}
+                            batchGroupCount={batchGroupCount}
+                        />
+                    </div>
                 </div>
             </main>
+
+            {/* Batch Operation Dialogs */}
+            <BatchCheckInDialog
+                open={checkInDialogOpen}
+                onOpenChange={setCheckInDialogOpen}
+                slotIds={selectedSlotIds}
+                onSuccess={handleDialogSuccess}
+            />
+            <BatchCheckOutDialog
+                open={checkOutDialogOpen}
+                onOpenChange={setCheckOutDialogOpen}
+                sampleIds={selectedSampleIds}
+                onSuccess={handleDialogSuccess}
+            />
+            <BatchEditDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                sampleIds={selectedSampleIds}
+                onSuccess={handleDialogSuccess}
+            />
         </div>
     )
 }

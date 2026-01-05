@@ -1,9 +1,9 @@
 // Sample CRUD API
-// POST /api/samples - Create a new sample (check-in)
+// POST /api/samples - Create a new sample (check-in) or batch check-in
 // GET /api/samples - Search samples
 
 import { NextRequest, NextResponse } from 'next/server'
-import { checkInSample, searchSamples } from '@/server/db/sample'
+import { checkInSample, searchSamples, batchCheckInSamples } from '@/server/db/sample'
 
 export async function GET(request: NextRequest) {
     try {
@@ -26,10 +26,10 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
-        const { slotId, userId = 'system', ...sampleData } = body
+        const { slotId, slotIds, userId = 'system', ...sampleData } = body
 
         // Validate required fields
-        if (!slotId) {
+        if (!slotId && (!slotIds || slotIds.length === 0)) {
             return NextResponse.json(
                 { error: '请选择存储位置' },
                 { status: 400 }
@@ -43,6 +43,18 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Batch check-in if slotIds array provided
+        if (slotIds && slotIds.length > 0) {
+            const samples = await batchCheckInSamples(sampleData, slotIds, userId)
+            return NextResponse.json({
+                success: true,
+                samples,
+                count: samples.length,
+                message: `成功入库 ${samples.length} 个样本`,
+            })
+        }
+
+        // Single check-in
         const sample = await checkInSample(sampleData, slotId, userId)
 
         return NextResponse.json({
@@ -58,3 +70,4 @@ export async function POST(request: NextRequest) {
         )
     }
 }
+

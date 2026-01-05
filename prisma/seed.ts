@@ -23,6 +23,19 @@ async function main() {
     })
     console.log('✅ Created admin user:', adminUser.email)
 
+    // Create system user for API operations (hardcoded id for simplicity)
+    const systemUser = await prisma.user.upsert({
+        where: { email: 'system@cbms.local' },
+        update: {},
+        create: {
+            id: 'system', // Fixed ID used by API
+            email: 'system@cbms.local',
+            name: 'System',
+            role: 'ADMIN',
+        },
+    })
+    console.log('✅ Created system user:', systemUser.id)
+
     // 2. Create demo facility: -80C Freezer
     const facility = await prisma.storageFacility.create({
         data: {
