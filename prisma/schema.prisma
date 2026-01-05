@@ -198,6 +198,7 @@ model Sample {
   // Audit
   owner         String  // "Wang Haiyan"
   notes         String?
+  sterileCheck  String? // 无菌验证: "是" / "否"
   
   auditLogs     AuditLog[]
   
@@ -232,3 +233,21 @@ model AuditLog {
   @@index([sampleId])
   @@index([timestamp])
 }
+
+// ============================================
+// System Presets (Admin-managed dropdown options)
+// ============================================
+
+model SystemPreset {
+  id        String   @id @default(cuid())
+  category  String   // CELL_NAME, CELL_TYPE, CRYO_MEDIA, CRYO_DENSITY, PASSAGE, STERILE_CHECK
+  value     String   // 预设值
+  order     Int      @default(0) // 排序顺序
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([category, value])
+  @@index([category])
+}
+

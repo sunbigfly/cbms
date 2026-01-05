@@ -89,6 +89,7 @@ export async function checkInSample(
         media?: string
         owner: string
         notes?: string
+        sterileCheck?: string
     },
     slotId: string,
     userId: string
@@ -377,6 +378,7 @@ export async function batchCheckInSamples(
         media?: string
         owner: string
         notes?: string
+        sterileCheck?: string
     },
     slotIds: string[],
     userId: string
@@ -536,6 +538,7 @@ export async function batchUpdateSamples(
         media?: string
         owner?: string
         notes?: string
+        sterileCheck?: string
     },
     userId: string
 ) {

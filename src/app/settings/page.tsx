@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, Edit, Database, Users, Loader2, ChevronDown, ChevronUp, Package, Layers, ShieldAlert } from 'lucide-react'
+import { Plus, Trash2, Edit, Database, Users, Loader2, ChevronDown, ChevronUp, Package, Layers, ShieldAlert, Settings } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/select'
 import { CreateFacilityWizard } from '@/components/features/CreateFacilityWizard'
 import { useToast } from '@/hooks/use-toast'
+import { PresetsManager } from '@/components/features/PresetsManager'
 
 interface Facility {
     id: string
@@ -466,6 +467,10 @@ export default function SettingsPage() {
                             <Users className="h-4 w-4" />
                             用户管理
                         </TabsTrigger>
+                        <TabsTrigger value="presets" className="gap-2">
+                            <Settings className="h-4 w-4" />
+                            预设管理
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="facilities">
@@ -711,6 +716,10 @@ export default function SettingsPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    <TabsContent value="presets">
+                        <PresetsManager />
                     </TabsContent>
                 </Tabs>
             </main>
