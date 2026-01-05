@@ -14,8 +14,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { Search, Filter, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Search, Loader2 } from 'lucide-react'
+
 
 interface AuditLog {
     id: string
@@ -121,10 +121,7 @@ export default function AuditPage() {
                             查看所有样本操作的审计日志
                         </p>
                     </div>
-                    <Button variant="outline" size="sm">
-                        <Filter className="mr-2 h-4 w-4" />
-                        筛选
-                    </Button>
+
                 </div>
 
                 {/* Search and Filters */}
