@@ -72,6 +72,16 @@ export async function searchSamples(query: string, limit = 50) {
     })
 }
 
+// 根据 IDs 获取多个样本
+export async function getSamplesByIds(ids: string[]) {
+    return prisma.sample.findMany({
+        where: {
+            id: { in: ids }
+        },
+        orderBy: { createdAt: 'desc' },
+    })
+}
+
 // ============================================
 // Check In (Create Sample)
 // ============================================

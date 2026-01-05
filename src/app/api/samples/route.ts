@@ -3,11 +3,26 @@
 // GET /api/samples - Search samples
 
 import { NextRequest, NextResponse } from 'next/server'
-import { checkInSample, searchSamples, batchCheckInSamples } from '@/server/db/sample'
+import { checkInSample, searchSamples, batchCheckInSamples, getSamplesByIds } from '@/server/db/sample'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)
+
+        // 支持通过 ids 查询多个样本
+        const ids = searchParams.get('ids')
+        if (ids) {
+            const sampleIds = ids.split(',').filter(id => id.trim())
+            if (sampleIds.length === 0) {
+                return NextResponse.json([])
+            }
+            const samples = await getSamplesByIds(sampleIds)
+            return NextResponse.json(samples)
+        }
+
+        // 普通搜索
         const query = searchParams.get('q') || ''
         const limit = parseInt(searchParams.get('limit') || '50')
 
@@ -24,9 +39,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json()
+        // 获取当前登录用户的 ID
+        const session = await getServerSession(authOptions)
+        if (!session?.user?.id) {
+            return NextResponse.json(
+                { error: '未登录' },
+                { status: 401 }
+            )
+        }
 
-        const { slotId, slotIds, userId = 'system', ...sampleData } = body
+        const body = await request.json()
+        const { slotId, slotIds, ...sampleData } = body
 
         // Validate required fields
         if (!slotId && (!slotIds || slotIds.length === 0)) {
@@ -42,6 +65,9 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             )
         }
+
+        // 使用实际的 user ID（而非用户名）
+        const userId = session.user.id
 
         // Batch check-in if slotIds array provided
         if (slotIds && slotIds.length > 0) {
@@ -70,4 +96,3 @@ export async function POST(request: NextRequest) {
         )
     }
 }
-

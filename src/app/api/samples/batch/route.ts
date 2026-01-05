@@ -3,11 +3,22 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { batchUpdateSamples, findBatchGroup } from '@/server/db/sample'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function PATCH(request: NextRequest) {
     try {
+        // 获取当前登录用户的 ID
+        const session = await getServerSession(authOptions)
+        if (!session?.user?.id) {
+            return NextResponse.json(
+                { error: '未登录' },
+                { status: 401 }
+            )
+        }
+
         const body = await request.json()
-        const { sampleIds, updates, userId = 'system' } = body
+        const { sampleIds, updates } = body
 
         if (!sampleIds || sampleIds.length === 0) {
             return NextResponse.json(
@@ -23,7 +34,8 @@ export async function PATCH(request: NextRequest) {
             )
         }
 
-        const results = await batchUpdateSamples(sampleIds, updates, userId)
+        // 使用实际的 user ID（而非用户名）
+        const results = await batchUpdateSamples(sampleIds, updates, session.user.id)
 
         return NextResponse.json({
             success: true,

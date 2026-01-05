@@ -96,6 +96,7 @@ interface ExtendedSample {
     media?: string
     owner?: string
     notes?: string
+    sterileCheck?: string
 }
 
 interface BoxDetail {
@@ -183,6 +184,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                 media: (slot.sample as ExtendedSample).media,
                 owner: (slot.sample as ExtendedSample).owner,
                 notes: (slot.sample as ExtendedSample).notes,
+                sterileCheck: (slot.sample as ExtendedSample).sterileCheck,
             } : null
         }))
     }, [box])

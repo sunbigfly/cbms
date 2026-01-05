@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle, Beaker, Calendar, User, FlaskConical, Hash, Droplet, FlaskRound, TestTube2 } from 'lucide-react'
+import { AlertTriangle, Beaker, Calendar, User, FlaskConical, Hash, Droplet, FlaskRound, TestTube2, ShieldCheck } from 'lucide-react'
 
 export interface SampleDetail {
     id: string
@@ -18,6 +18,7 @@ export interface SampleDetail {
     media?: string
     owner?: string
     notes?: string
+    sterileCheck?: string
     slotId?: string
     slotPosition?: string
 }
@@ -144,6 +145,15 @@ export function SlotDetailPanel({
                             <div>
                                 <p className="text-xs text-muted-foreground">冻存液</p>
                                 <p className="font-medium truncate max-w-[100px]">{sample.media}</p>
+                            </div>
+                        </div>
+                    )}
+                    {sample.sterileCheck && (
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">无菌验证</p>
+                                <p className="font-medium">{sample.sterileCheck}</p>
                             </div>
                         </div>
                     )}
