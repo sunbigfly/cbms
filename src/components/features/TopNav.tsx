@@ -32,7 +32,7 @@ const navItems = [
     { href: '/inventory', label: '细胞数据详情', icon: Database, adminOnly: false },
     { href: '/audit', label: '历史记录', icon: History, adminOnly: false },
     { href: '/reports', label: '报表', icon: BarChart3, adminOnly: false },
-    { href: '/settings', label: '系统设置', icon: Settings, adminOnly: true },
+    { href: '/settings', label: '系统设置', icon: Settings, adminOnly: false },
 ]
 
 export function TopNav() {

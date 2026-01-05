@@ -375,9 +375,9 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
             {/* Grid container - centered */}
             <div className="flex flex-col items-center">
                 {/* Column headers */}
-                <div className="inline-flex gap-1 mb-1 ml-6">
+                <div className="inline-flex gap-1.5 mb-1 ml-8">
                     {Array.from({ length: columns }, (_, i) => (
-                        <div key={i} className="w-8 h-6 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                        <div key={i} className="w-10 h-6 flex items-center justify-center text-xs text-muted-foreground font-medium">
                             {i + 1}
                         </div>
                     ))}
@@ -386,8 +386,8 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                 {/* Grid with row labels */}
                 <TooltipProvider>
                     {Array.from({ length: rows }, (_, rowIndex) => (
-                        <div key={rowIndex} className="inline-flex gap-1 mb-1">
-                            <div className="w-5 h-8 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                        <div key={rowIndex} className="inline-flex gap-1.5 mb-1.5">
+                            <div className="w-6 h-10 flex items-center justify-center text-xs text-muted-foreground font-medium">
                                 {rowLabels[rowIndex]}
                             </div>
                             {Array.from({ length: columns }, (_, colIndex) => {
@@ -403,7 +403,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                         <TooltipTrigger asChild>
                                             <button
                                                 onClick={(e) => slotInfo && handleSlotClick(slotInfo, e)}
-                                                className={`w-8 h-8 rounded-sm border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-[10px] font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember)}`}
+                                                className={`w-10 h-10 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-xs font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember)}`}
                                             >
                                                 {isOccupied && slot?.sample?.name?.slice(0, 2)}
                                             </button>

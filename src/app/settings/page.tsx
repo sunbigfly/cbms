@@ -81,8 +81,11 @@ export default function SettingsPage() {
     const router = useRouter()
     const { toast } = useToast()
     const [facilityDialogOpen, setFacilityDialogOpen] = useState(false)
+    const [privateFacilityDialogOpen, setPrivateFacilityDialogOpen] = useState(false)
     const [facilities, setFacilities] = useState<Facility[]>([])
+    const [privateFacilities, setPrivateFacilities] = useState<Facility[]>([])
     const [loading, setLoading] = useState(true)
+    const [privateLoading, setPrivateLoading] = useState(true)
 
     // 权限检查: 只有管理员可访问
     const isAdmin = session?.user?.role === 'ADMIN'
@@ -155,6 +158,22 @@ export default function SettingsPage() {
         }
     }, [])
 
+    // 获取私有设施列表（员工）
+    const fetchPrivateFacilities = useCallback(async () => {
+        try {
+            setPrivateLoading(true)
+            const res = await fetch('/api/facilities?private=true')
+            if (res.ok) {
+                const data = await res.json()
+                setPrivateFacilities(data)
+            }
+        } catch (error) {
+            console.error('Failed to fetch private facilities:', error)
+        } finally {
+            setPrivateLoading(false)
+        }
+    }, [])
+
     const fetchFacilityDetails = async (facilityId: string) => {
         try {
             const res = await fetch(`/api/inventory?facilityId=${facilityId}`)
@@ -168,12 +187,21 @@ export default function SettingsPage() {
     }
 
     useEffect(() => {
-        fetchFacilities()
-    }, [fetchFacilities])
+        if (isAdmin) {
+            fetchFacilities()
+        }
+        // 员工和管理员都可以获取私有设施列表
+        fetchPrivateFacilities()
+    }, [fetchFacilities, fetchPrivateFacilities, isAdmin])
 
     const handleFacilitySuccess = () => {
         setFacilityDialogOpen(false)
         fetchFacilities()
+    }
+
+    const handlePrivateFacilitySuccess = () => {
+        setPrivateFacilityDialogOpen(false)
+        fetchPrivateFacilities()
     }
 
     // User management functions
@@ -421,25 +449,7 @@ export default function SettingsPage() {
         )
     }
 
-    if (!isAdmin) {
-        return (
-            <div className="min-h-screen bg-background">
-                <TopNav />
-                <main className="container mx-auto px-4 py-6">
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4" />
-                        <h1 className="text-2xl font-bold mb-2">无访问权限</h1>
-                        <p className="text-muted-foreground text-center max-w-md">
-                            只有管理员可以访问系统设置页面。如需管理员权限，请联系系统管理员。
-                        </p>
-                        <Button className="mt-6" onClick={() => router.push('/')}>
-                            返回首页
-                        </Button>
-                    </div>
-                </main>
-            </div>
-        )
-    }
+    // 员工和管理员都可以访问设置页面，但显示不同的 Tab
 
     return (
         <div className="min-h-screen bg-background">
@@ -451,68 +461,332 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold">系统设置</h1>
+                    <h1 className="text-2xl font-bold">{isAdmin ? '系统设置' : '我的设置'}</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        管理设施配置和用户权限
+                        {isAdmin ? '管理设施配置和用户权限' : '管理您的私有细胞库'}
                     </p>
                 </div>
 
-                <Tabs defaultValue="facilities" className="space-y-6">
+                <Tabs defaultValue={isAdmin ? 'facilities' : 'private-library'} className="space-y-6">
                     <TabsList>
-                        <TabsTrigger value="facilities" className="gap-2">
+                        {isAdmin && (
+                            <>
+                                <TabsTrigger value="facilities" className="gap-2">
+                                    <Database className="h-4 w-4" />
+                                    设施管理
+                                </TabsTrigger>
+                                <TabsTrigger value="users" className="gap-2">
+                                    <Users className="h-4 w-4" />
+                                    用户管理
+                                </TabsTrigger>
+                                <TabsTrigger value="presets" className="gap-2">
+                                    <Settings className="h-4 w-4" />
+                                    预设管理
+                                </TabsTrigger>
+                            </>
+                        )}
+                        <TabsTrigger value="private-library" className="gap-2">
                             <Database className="h-4 w-4" />
-                            设施管理
-                        </TabsTrigger>
-                        <TabsTrigger value="users" className="gap-2">
-                            <Users className="h-4 w-4" />
-                            用户管理
-                        </TabsTrigger>
-                        <TabsTrigger value="presets" className="gap-2">
-                            <Settings className="h-4 w-4" />
-                            预设管理
+                            我的私有库
                         </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="facilities">
+                    {isAdmin && (
+                        <TabsContent value="facilities">
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <CardTitle>存储设施</CardTitle>
+                                            <CardDescription>管理冷冻库和液氮罐配置</CardDescription>
+                                        </div>
+                                        <Dialog open={facilityDialogOpen} onOpenChange={setFacilityDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button>
+                                                    <Plus className="mr-2 h-4 w-4" />
+                                                    新增设施
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                                <DialogHeader>
+                                                    <DialogTitle>创建新设施</DialogTitle>
+                                                    <DialogDescription>
+                                                        按步骤配置您的存储设施
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <CreateFacilityWizard onSuccess={handleFacilitySuccess} />
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        {loading ? (
+                                            <div className="flex items-center justify-center py-8">
+                                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                                <span className="ml-2 text-muted-foreground">加载中...</span>
+                                            </div>
+                                        ) : facilities.length === 0 ? (
+                                            <div className="text-center py-8 text-muted-foreground">
+                                                暂无设施，点击&quot;新增设施&quot;开始创建
+                                            </div>
+                                        ) : (
+                                            facilities.map((facility) => (
+                                                <div key={facility.id} className="border rounded-lg">
+                                                    <div className="flex items-center justify-between p-4">
+                                                        <div
+                                                            className="flex items-center gap-2 cursor-pointer flex-1"
+                                                            onClick={() => toggleFacilityExpand(facility.id)}
+                                                        >
+                                                            {expandedFacility === facility.id ? (
+                                                                <ChevronUp className="h-4 w-4" />
+                                                            ) : (
+                                                                <ChevronDown className="h-4 w-4" />
+                                                            )}
+                                                            <div>
+                                                                <p className="font-medium">{facility.name}</p>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    {facility.type} | {facility.totalRacks} 货架
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => openEditDialog(facility)}
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="text-destructive"
+                                                                onClick={() => openDeleteDialog(facility)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expanded content: Racks and Boxes */}
+                                                    {expandedFacility === facility.id && (
+                                                        <div className="border-t p-4 bg-muted/30">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <h4 className="text-sm font-medium">架子管理</h4>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => openAddRackDialog(facility.id)}
+                                                                >
+                                                                    <Plus className="h-3 w-3 mr-1" />
+                                                                    添加架子
+                                                                </Button>
+                                                            </div>
+
+                                                            {facilityDetails[facility.id]?.racks?.map((rack) => (
+                                                                <div key={rack.id} className="ml-4 mb-3 border-l-2 pl-4">
+                                                                    <div className="flex items-center justify-between py-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Layers className="h-4 w-4 text-muted-foreground" />
+                                                                            <span className="font-medium">{rack.name}</span>
+                                                                            <Badge variant="secondary">{rack.totalShelves} 层</Badge>
+                                                                        </div>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-destructive"
+                                                                            onClick={() => {
+                                                                                setDeletingRackId(rack.id)
+                                                                                setDeleteRackDialogOpen(true)
+                                                                            }}
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+
+                                                                    {/* Shelves and Boxes */}
+                                                                    {rack.shelves?.map((shelf) => (
+                                                                        <div key={shelf.id} className="ml-4 py-1">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-sm text-muted-foreground">{shelf.name}</span>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex gap-1">
+                                                                                        {shelf.boxes?.map((box) => (
+                                                                                            <div
+                                                                                                key={box.id}
+                                                                                                className="flex items-center gap-1 px-2 py-1 bg-background border rounded text-xs"
+                                                                                            >
+                                                                                                <Package className="h-3 w-3" />
+                                                                                                {box.name}
+                                                                                                <Button
+                                                                                                    variant="ghost"
+                                                                                                    size="icon"
+                                                                                                    className="h-4 w-4 text-destructive"
+                                                                                                    onClick={() => {
+                                                                                                        setDeletingBoxId(box.id)
+                                                                                                        setDeleteBoxDialogOpen(true)
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <Trash2 className="h-2 w-2" />
+                                                                                                </Button>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-6 w-6"
+                                                                                        onClick={() => openAddBoxDialog(shelf.id)}
+                                                                                    >
+                                                                                        <Plus className="h-3 w-3" />
+                                                                                    </Button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ))}
+
+                                                            {!facilityDetails[facility.id] && (
+                                                                <div className="flex items-center justify-center py-4">
+                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    )}
+
+                    {isAdmin && (
+                        <TabsContent value="users">
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <CardTitle>用户管理</CardTitle>
+                                            <CardDescription>管理已注册的系统用户</CardDescription>
+                                        </div>
+                                        <Button variant="outline" onClick={fetchUsers}>
+                                            刷新列表
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-3">
+                                        {usersLoading ? (
+                                            <div className="flex items-center justify-center py-8">
+                                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                                <span className="ml-2 text-muted-foreground">加载中...</span>
+                                            </div>
+                                        ) : users.length === 0 ? (
+                                            <div className="text-center py-8 text-muted-foreground">
+                                                暂无用户
+                                            </div>
+                                        ) : (
+                                            users.map((user) => (
+                                                <div key={user.id} className={`flex items-center justify-between p-4 border rounded-lg ${user.isBlocked ? 'bg-muted/50 opacity-60' : ''}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`h-10 w-10 rounded-full flex items-center justify-center font-medium ${user.isBlocked ? 'bg-destructive/20' : 'bg-primary/20'}`}>
+                                                            {user.name?.[0] || user.employeeId?.[0] || '?'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium">{user.name || '未设置'}</p>
+                                                            <p className="text-sm text-muted-foreground">工号: {user.employeeId || '-'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
+                                                            {user.role === 'ADMIN' ? '管理员' : '员工'}
+                                                        </Badge>
+                                                        {user.isBlocked && (
+                                                            <Badge variant="destructive">已封禁</Badge>
+                                                        )}
+                                                        {user.role !== 'ADMIN' && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleToggleBlock(user.id, !user.isBlocked)}
+                                                                >
+                                                                    {user.isBlocked ? '解封' : '封禁'}
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="text-destructive"
+                                                                    onClick={() => {
+                                                                        setDeletingUserId(user.id)
+                                                                        setDeleteUserDialogOpen(true)
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    )}
+
+                    {isAdmin && (
+                        <TabsContent value="presets">
+                            <PresetsManager />
+                        </TabsContent>
+                    )}
+
+                    {/* 私有库管理 Tab - 员工和管理员都可见 */}
+                    <TabsContent value="private-library">
                         <Card>
                             <CardHeader>
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <CardTitle>存储设施</CardTitle>
-                                        <CardDescription>管理冷冻库和液氮罐配置</CardDescription>
+                                        <CardTitle>我的私有细胞库</CardTitle>
+                                        <CardDescription>管理您自己的私有存储设施</CardDescription>
                                     </div>
-                                    <Dialog open={facilityDialogOpen} onOpenChange={setFacilityDialogOpen}>
+                                    <Dialog open={privateFacilityDialogOpen} onOpenChange={setPrivateFacilityDialogOpen}>
                                         <DialogTrigger asChild>
                                             <Button>
                                                 <Plus className="mr-2 h-4 w-4" />
-                                                新增设施
+                                                新增私有设施
                                             </Button>
                                         </DialogTrigger>
                                         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                                             <DialogHeader>
-                                                <DialogTitle>创建新设施</DialogTitle>
+                                                <DialogTitle>创建私有设施</DialogTitle>
                                                 <DialogDescription>
-                                                    按步骤配置您的存储设施
+                                                    按步骤配置您的私有存储设施
                                                 </DialogDescription>
                                             </DialogHeader>
-                                            <CreateFacilityWizard onSuccess={handleFacilitySuccess} />
+                                            <CreateFacilityWizard forcePrivate={true} onSuccess={handlePrivateFacilitySuccess} />
                                         </DialogContent>
                                     </Dialog>
                                 </div>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
-                                    {loading ? (
+                                    {privateLoading ? (
                                         <div className="flex items-center justify-center py-8">
                                             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                             <span className="ml-2 text-muted-foreground">加载中...</span>
                                         </div>
-                                    ) : facilities.length === 0 ? (
+                                    ) : privateFacilities.length === 0 ? (
                                         <div className="text-center py-8 text-muted-foreground">
-                                            暂无设施，点击&quot;新增设施&quot;开始创建
+                                            暂无私有设施，点击&quot;新增私有设施&quot;开始创建
                                         </div>
                                     ) : (
-                                        facilities.map((facility) => (
+                                        privateFacilities.map((facility) => (
                                             <div key={facility.id} className="border rounded-lg">
                                                 <div className="flex items-center justify-between p-4">
                                                     <div
@@ -642,84 +916,6 @@ export default function SettingsPage() {
                                 </div>
                             </CardContent>
                         </Card>
-                    </TabsContent>
-
-                    <TabsContent value="users">
-                        <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle>用户管理</CardTitle>
-                                        <CardDescription>管理已注册的系统用户</CardDescription>
-                                    </div>
-                                    <Button variant="outline" onClick={fetchUsers}>
-                                        刷新列表
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3">
-                                    {usersLoading ? (
-                                        <div className="flex items-center justify-center py-8">
-                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                            <span className="ml-2 text-muted-foreground">加载中...</span>
-                                        </div>
-                                    ) : users.length === 0 ? (
-                                        <div className="text-center py-8 text-muted-foreground">
-                                            暂无用户
-                                        </div>
-                                    ) : (
-                                        users.map((user) => (
-                                            <div key={user.id} className={`flex items-center justify-between p-4 border rounded-lg ${user.isBlocked ? 'bg-muted/50 opacity-60' : ''}`}>
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center font-medium ${user.isBlocked ? 'bg-destructive/20' : 'bg-primary/20'}`}>
-                                                        {user.name?.[0] || user.employeeId?.[0] || '?'}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium">{user.name || '未设置'}</p>
-                                                        <p className="text-sm text-muted-foreground">工号: {user.employeeId || '-'}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
-                                                        {user.role === 'ADMIN' ? '管理员' : '员工'}
-                                                    </Badge>
-                                                    {user.isBlocked && (
-                                                        <Badge variant="destructive">已封禁</Badge>
-                                                    )}
-                                                    {user.role !== 'ADMIN' && (
-                                                        <>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => handleToggleBlock(user.id, !user.isBlocked)}
-                                                            >
-                                                                {user.isBlocked ? '解封' : '封禁'}
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="text-destructive"
-                                                                onClick={() => {
-                                                                    setDeletingUserId(user.id)
-                                                                    setDeleteUserDialogOpen(true)
-                                                                }}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    <TabsContent value="presets">
-                        <PresetsManager />
                     </TabsContent>
                 </Tabs>
             </main>
