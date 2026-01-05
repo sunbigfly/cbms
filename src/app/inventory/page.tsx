@@ -738,26 +738,8 @@ export default function InventoryPage() {
                                 <CardContent className="pt-4">
                                     {/* Facility List */}
                                     <TabsContent value="facility" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
-                                        {/* 私有库模式下显示创建按钮 */}
-                                        {libraryMode === 'private' && (
-                                            <div className="mb-3">
-                                                <CreateFacilityWizard
-                                                    forcePrivate={true}
-                                                    onSuccess={() => {
-                                                        // 刷新私有库列表
-                                                        fetch('/api/inventory?private=true')
-                                                            .then(res => res.json())
-                                                            .then(data => setFacilities(data.facilities || []))
-                                                    }}
-                                                />
-                                            </div>
-                                        )}
                                         {facilities.length === 0 ? (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">
-                                                {libraryMode === 'private'
-                                                    ? '暂无私有库，点击上方按钮创建'
-                                                    : '暂无设施'}
-                                            </div>
+                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无设施</div>
                                         ) : (
                                             facilities.map((facility) => (
                                                 <div
