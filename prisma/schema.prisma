@@ -1,0 +1,224 @@
+// Cell Bank Management System (CBMS) - Prisma Schema
+// Based on design_spec.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Authentication (NextAuth.js)
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?   // For credentials provider
+  image         String?
+  role          String    @default("TECHNICIAN") // ADMIN, TECHNICIAN
+  
+  accounts      Account[]
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// Spatial Hierarchy (Physical Storage)
+// ============================================
+
+// Level 1: The physical facility or major appliance
+model StorageFacility {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Master Bank", "Working Bank"
+  type        String   // e.g., "-80C Freezer", "LN2 Tank"
+  description String?
+  
+  // Capacity Configuration
+  totalRacks  Int      // How many racks this facility holds
+  
+  racks       Rack[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Level 2: The physical rack or frame inside the facility
+model Rack {
+  id           String          @id @default(cuid())
+  name         String          // e.g., "Rack 01"
+  code         String          // e.g., "R01"
+  
+  // Capacity Configuration
+  totalShelves Int             // How many shelves/drawers vertical
+  
+  facilityId   String
+  facility     StorageFacility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  
+  shelves      Shelf[]
+  
+  @@index([facilityId])
+}
+
+// Level 3: The drawer or shelf within a rack
+model Shelf {
+  id     String @id @default(cuid())
+  name   String // e.g., "Drawer 1", "Layer 3"
+  order  Int    // Physical order (1 = Top)
+  
+  rackId String
+  rack   Rack   @relation(fields: [rackId], references: [id], onDelete: Cascade)
+  
+  boxes  Box[]
+  
+  @@index([rackId])
+}
+
+// Level 4: The actual container holding the samples
+model Box {
+  id       String  @id @default(cuid())
+  name     String  // e.g., "CHO-Cells-001"
+  barcode  String? @unique
+  
+  // Dimensions for Dynamic Grid
+  rows     Int     // e.g., 9
+  columns  Int     // e.g., 10
+  gridType String  // "ALPHANUMERIC" (A1-H12) or "NUMERIC" (1-81)
+  
+  shelfId  String
+  shelf    Shelf   @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  
+  slots    Slot[]
+  
+  @@index([shelfId])
+}
+
+// Level 5: The specific position within the Box
+model Slot {
+  id       String  @id @default(cuid())
+  boxId    String
+  box      Box     @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  
+  // Coordinate Systems
+  rowLabel String  // "A"
+  colLabel String  // "1"
+  position Int     // Flattened index (e.g., 1)
+  
+  // Content
+  status   SlotStatus @default(EMPTY)
+  sample   Sample?
+  
+  @@unique([boxId, position])
+  @@index([boxId])
+}
+
+enum SlotStatus {
+  EMPTY
+  OCCUPIED
+  RESERVED
+}
+
+// ============================================
+// Biological Data (Samples)
+// ============================================
+
+model Sample {
+  id            String  @id @default(cuid())
+  
+  // Core Bio Data
+  name          String  // "CHO"
+  type          String  // "Chinese Hamster Ovary"
+  batchNo       String? // "20250422-01"
+  
+  // Cryo Data
+  quantity      Float   // Volume
+  unit          String  // "ml"
+  concentration String  // "2.8x10^6"
+  viability     Float   // 0.988
+  passage       String  // "P1"
+  media         String? // "CryoStor"
+  
+  // Location (One-to-One with Slot)
+  slotId        String  @unique
+  slot          Slot    @relation(fields: [slotId], references: [id])
+  
+  // Audit
+  owner         String  // "Wang Haiyan"
+  notes         String?
+  
+  auditLogs     AuditLog[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================
+// Audit Trail (Full History)
+// ============================================
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String   // "CREATE", "MOVE", "CONSUME", "DESTROY", "UPDATE"
+  
+  // Snapshot of data BEFORE change (for diffing)
+  previousData Json?
+  newData      Json?
+  
+  // Who and What
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  
+  sampleId     String?
+  sample       Sample?  @relation(fields: [sampleId], references: [id], onDelete: SetNull)
+  
+  description  String   // Human readable: "Moved sample CHO-1 from Box A to Box B"
+  
+  timestamp    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([sampleId])
+  @@index([timestamp])
+}
