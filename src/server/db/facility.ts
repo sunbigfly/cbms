@@ -259,3 +259,223 @@ export async function getBoxStats(boxId: string) {
         occupancyRate: total > 0 ? occupied / total : 0,
     }
 }
+
+// ============================================
+// Facility Update & Delete
+// ============================================
+
+export async function updateFacility(id: string, data: {
+    name?: string
+    type?: string
+    description?: string
+}) {
+    return prisma.storageFacility.update({
+        where: { id },
+        data,
+    })
+}
+
+export async function canDeleteFacility(id: string): Promise<{ canDelete: boolean; reason?: string; sampleCount: number }> {
+    const sampleCount = await prisma.sample.count({
+        where: {
+            slot: {
+                box: {
+                    shelf: {
+                        rack: { facilityId: id }
+                    }
+                }
+            }
+        }
+    })
+
+    if (sampleCount > 0) {
+        return { canDelete: false, reason: `设施内还有 ${sampleCount} 个细胞样本`, sampleCount }
+    }
+    return { canDelete: true, sampleCount: 0 }
+}
+
+export async function deleteFacility(id: string) {
+    const check = await canDeleteFacility(id)
+    if (!check.canDelete) {
+        throw new Error(check.reason)
+    }
+    return prisma.storageFacility.delete({ where: { id } })
+}
+
+// ============================================
+// Rack Add & Delete
+// ============================================
+
+export async function addRackToFacility(facilityId: string, data: {
+    name: string
+    shelvesPerRack: number
+    boxRows: number
+    boxCols: number
+    gridType?: string
+}) {
+    const { name, shelvesPerRack, boxRows, boxCols, gridType = 'ALPHANUMERIC' } = data
+
+    // Get current rack count for naming
+    const existingRacks = await prisma.rack.count({ where: { facilityId } })
+    const rackIndex = existingRacks + 1
+
+    const generateSlots = (rows: number, cols: number): Prisma.SlotCreateWithoutBoxInput[] => {
+        const slots: Prisma.SlotCreateWithoutBoxInput[] = []
+        const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                slots.push({
+                    rowLabel: rowLabels[row],
+                    colLabel: String(col + 1),
+                    position: row * cols + col + 1,
+                    status: 'EMPTY',
+                })
+            }
+        }
+        return slots
+    }
+
+    const rack = await prisma.rack.create({
+        data: {
+            name: name || `Rack ${String(rackIndex).padStart(2, '0')}`,
+            code: `R${String(rackIndex).padStart(2, '0')}`,
+            totalShelves: shelvesPerRack,
+            facilityId,
+            shelves: {
+                create: Array.from({ length: shelvesPerRack }, (_, shelfIndex) => ({
+                    name: `Drawer ${shelfIndex + 1}`,
+                    order: shelfIndex + 1,
+                    boxes: {
+                        create: [{
+                            name: `Box-${rackIndex}${String.fromCharCode(65 + shelfIndex)}`,
+                            rows: boxRows,
+                            columns: boxCols,
+                            gridType,
+                            slots: {
+                                create: generateSlots(boxRows, boxCols),
+                            },
+                        }],
+                    },
+                })),
+            },
+        },
+    })
+
+    // Update facility totalRacks count
+    await prisma.storageFacility.update({
+        where: { id: facilityId },
+        data: { totalRacks: { increment: 1 } },
+    })
+
+    return rack
+}
+
+export async function canDeleteRack(rackId: string): Promise<{ canDelete: boolean; reason?: string; sampleCount: number }> {
+    const sampleCount = await prisma.sample.count({
+        where: {
+            slot: {
+                box: {
+                    shelf: { rackId }
+                }
+            }
+        }
+    })
+
+    if (sampleCount > 0) {
+        return { canDelete: false, reason: `架子内还有 ${sampleCount} 个细胞样本`, sampleCount }
+    }
+    return { canDelete: true, sampleCount: 0 }
+}
+
+export async function deleteRack(rackId: string) {
+    const rack = await prisma.rack.findUnique({ where: { id: rackId }, select: { facilityId: true } })
+    if (!rack) throw new Error('架子不存在')
+
+    const check = await canDeleteRack(rackId)
+    if (!check.canDelete) {
+        throw new Error(check.reason)
+    }
+
+    await prisma.rack.delete({ where: { id: rackId } })
+
+    // Update facility totalRacks count
+    await prisma.storageFacility.update({
+        where: { id: rack.facilityId },
+        data: { totalRacks: { decrement: 1 } },
+    })
+
+    return { success: true }
+}
+
+// ============================================
+// Box Add & Delete
+// ============================================
+
+export async function addBoxToShelf(shelfId: string, data: {
+    name?: string
+    rows: number
+    columns: number
+    gridType?: string
+}) {
+    const { name, rows, columns, gridType = 'ALPHANUMERIC' } = data
+
+    // Get shelf info for naming
+    const shelf = await prisma.shelf.findUnique({
+        where: { id: shelfId },
+        include: { boxes: true, rack: true }
+    })
+    if (!shelf) throw new Error('层架不存在')
+
+    const boxCount = shelf.boxes.length + 1
+    const boxName = name || `Box-${shelf.rack.code}-${shelf.order}-${boxCount}`
+
+    const generateSlots = (r: number, c: number): Prisma.SlotCreateWithoutBoxInput[] => {
+        const slots: Prisma.SlotCreateWithoutBoxInput[] = []
+        const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for (let row = 0; row < r; row++) {
+            for (let col = 0; col < c; col++) {
+                slots.push({
+                    rowLabel: rowLabels[row],
+                    colLabel: String(col + 1),
+                    position: row * c + col + 1,
+                    status: 'EMPTY',
+                })
+            }
+        }
+        return slots
+    }
+
+    return prisma.box.create({
+        data: {
+            name: boxName,
+            rows,
+            columns,
+            gridType,
+            shelfId,
+            slots: {
+                create: generateSlots(rows, columns),
+            },
+        },
+    })
+}
+
+export async function canDeleteBox(boxId: string): Promise<{ canDelete: boolean; reason?: string; sampleCount: number }> {
+    const sampleCount = await prisma.sample.count({
+        where: {
+            slot: { boxId }
+        }
+    })
+
+    if (sampleCount > 0) {
+        return { canDelete: false, reason: `盒子内还有 ${sampleCount} 个细胞样本`, sampleCount }
+    }
+    return { canDelete: true, sampleCount: 0 }
+}
+
+export async function deleteBox(boxId: string) {
+    const check = await canDeleteBox(boxId)
+    if (!check.canDelete) {
+        throw new Error(check.reason)
+    }
+    return prisma.box.delete({ where: { id: boxId } })
+}

@@ -9,26 +9,28 @@ const prisma = new PrismaClient()
 async function main() {
     console.log('🌱 Starting CBMS database seed...')
 
-    // 1. Create demo user
-    const hashedPassword = await hash('admin123', 12)
+    // 1. Create demo admin user
+    const hashedPassword = await hash('123456', 12)
     const adminUser = await prisma.user.upsert({
         where: { email: 'admin@cbms.local' },
-        update: {},
+        update: { employeeId: 'admin' },
         create: {
+            employeeId: 'admin',
             email: 'admin@cbms.local',
-            name: 'System Admin',
+            name: '系统管理员',
             password: hashedPassword,
             role: 'ADMIN',
         },
     })
-    console.log('✅ Created admin user:', adminUser.email)
+    console.log('✅ Created admin user: 工号 admin, 密码 123456')
 
     // Create system user for API operations (hardcoded id for simplicity)
     const systemUser = await prisma.user.upsert({
         where: { email: 'system@cbms.local' },
-        update: {},
+        update: { employeeId: 'system' },
         create: {
             id: 'system', // Fixed ID used by API
+            employeeId: 'system',
             email: 'system@cbms.local',
             name: 'System',
             role: 'ADMIN',

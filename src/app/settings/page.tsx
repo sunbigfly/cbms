@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { TopNav } from '@/components/features/TopNav'
 import { Breadcrumbs } from '@/components/features/Breadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, Edit, Database, Users, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Edit, Database, Users, Loader2, ChevronDown, ChevronUp, Package, Layers, ShieldAlert } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -17,8 +19,27 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogFooter,
 } from '@/components/ui/dialog'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { CreateFacilityWizard } from '@/components/features/CreateFacilityWizard'
+import { useToast } from '@/hooks/use-toast'
 
 interface Facility {
     id: string
@@ -29,22 +50,79 @@ interface Facility {
     _count?: {
         racks: number
     }
-    racks?: Array<{
-        _count?: {
-            shelves: number
-        }
-        shelves?: Array<{
-            _count?: {
-                boxes: number
-            }
-        }>
-    }>
+    racks?: Rack[]
+}
+
+interface Rack {
+    id: string
+    name: string
+    code: string
+    totalShelves: number
+    shelves?: Shelf[]
+}
+
+interface Shelf {
+    id: string
+    name: string
+    order: number
+    boxes?: Box[]
+}
+
+interface Box {
+    id: string
+    name: string
+    rows: number
+    columns: number
 }
 
 export default function SettingsPage() {
+    const { data: session, status } = useSession()
+    const router = useRouter()
+    const { toast } = useToast()
     const [facilityDialogOpen, setFacilityDialogOpen] = useState(false)
     const [facilities, setFacilities] = useState<Facility[]>([])
     const [loading, setLoading] = useState(true)
+
+    // 权限检查: 只有管理员可访问
+    const isAdmin = session?.user?.role === 'ADMIN'
+
+    // 未登录重定向到登录页
+    useEffect(() => {
+        if (status === 'unauthenticated') {
+            router.push('/login')
+        }
+    }, [status, router])
+
+    // Edit dialog state
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [editingFacility, setEditingFacility] = useState<Facility | null>(null)
+    const [editFormData, setEditFormData] = useState({ name: '', type: '', description: '' })
+
+    // Delete dialog state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [deletingFacility, setDeletingFacility] = useState<Facility | null>(null)
+    const [canDelete, setCanDelete] = useState(true)
+    const [sampleCount, setSampleCount] = useState(0)
+
+    // Expanded facilities for rack/box management
+    const [expandedFacility, setExpandedFacility] = useState<string | null>(null)
+    const [facilityDetails, setFacilityDetails] = useState<Record<string, Facility>>({})
+
+    // Add rack dialog
+    const [addRackDialogOpen, setAddRackDialogOpen] = useState(false)
+    const [addRackFacilityId, setAddRackFacilityId] = useState<string | null>(null)
+    const [rackFormData, setRackFormData] = useState({ name: '', shelvesPerRack: 4, boxRows: 9, boxCols: 9 })
+
+    // Add box dialog
+    const [addBoxDialogOpen, setAddBoxDialogOpen] = useState(false)
+    const [addBoxShelfId, setAddBoxShelfId] = useState<string | null>(null)
+    const [boxFormData, setBoxFormData] = useState({ name: '', rows: 9, columns: 9 })
+
+    // Delete rack/box dialog
+    const [deleteRackDialogOpen, setDeleteRackDialogOpen] = useState(false)
+    const [deletingRackId, setDeletingRackId] = useState<string | null>(null)
+    const [deleteBoxDialogOpen, setDeleteBoxDialogOpen] = useState(false)
+    const [deletingBoxId, setDeletingBoxId] = useState<string | null>(null)
 
     const fetchFacilities = useCallback(async () => {
         try {
@@ -61,14 +139,234 @@ export default function SettingsPage() {
         }
     }, [])
 
+    const fetchFacilityDetails = async (facilityId: string) => {
+        try {
+            const res = await fetch(`/api/inventory?facilityId=${facilityId}`)
+            if (res.ok) {
+                const data = await res.json()
+                setFacilityDetails(prev => ({ ...prev, [facilityId]: data }))
+            }
+        } catch (error) {
+            console.error('Failed to fetch facility details:', error)
+        }
+    }
+
     useEffect(() => {
         fetchFacilities()
     }, [fetchFacilities])
 
     const handleFacilitySuccess = () => {
         setFacilityDialogOpen(false)
-        fetchFacilities() // 创建成功后刷新列表
+        fetchFacilities()
     }
+
+    // Edit handlers
+    const openEditDialog = (facility: Facility) => {
+        setEditingFacility(facility)
+        setEditFormData({
+            name: facility.name,
+            type: facility.type,
+            description: facility.description || '',
+        })
+        setEditDialogOpen(true)
+    }
+
+    const handleUpdateFacility = async () => {
+        if (!editingFacility) return
+        try {
+            const res = await fetch('/api/facilities', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: editingFacility.id, ...editFormData }),
+            })
+            if (res.ok) {
+                toast({ title: '更新成功', description: '设施信息已更新' })
+                setEditDialogOpen(false)
+                fetchFacilities()
+            } else {
+                const data = await res.json()
+                toast({ title: '更新失败', description: data.error, variant: 'destructive' })
+            }
+        } catch (error) {
+            toast({ title: '更新失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Delete handlers
+    const openDeleteDialog = async (facility: Facility) => {
+        setDeletingFacility(facility)
+        // Check if can delete
+        try {
+            const res = await fetch(`/api/facilities?id=${facility.id}`, { method: 'DELETE' })
+            const data = await res.json()
+            if (!res.ok && data.canDelete === false) {
+                setCanDelete(false)
+                setSampleCount(data.sampleCount || 0)
+            } else {
+                setCanDelete(true)
+                setSampleCount(0)
+            }
+        } catch {
+            setCanDelete(true)
+        }
+        setDeleteDialogOpen(true)
+    }
+
+    const handleDeleteFacility = async () => {
+        if (!deletingFacility) return
+        try {
+            const res = await fetch(`/api/facilities?id=${deletingFacility.id}`, { method: 'DELETE' })
+            if (res.ok) {
+                toast({ title: '删除成功', description: '设施已删除' })
+                setDeleteDialogOpen(false)
+                fetchFacilities()
+            } else {
+                const data = await res.json()
+                toast({ title: '删除失败', description: data.error, variant: 'destructive' })
+            }
+        } catch (error) {
+            toast({ title: '删除失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Expand/collapse facility
+    const toggleFacilityExpand = async (facilityId: string) => {
+        if (expandedFacility === facilityId) {
+            setExpandedFacility(null)
+        } else {
+            setExpandedFacility(facilityId)
+            if (!facilityDetails[facilityId]) {
+                await fetchFacilityDetails(facilityId)
+            }
+        }
+    }
+
+    // Add rack handlers
+    const openAddRackDialog = (facilityId: string) => {
+        setAddRackFacilityId(facilityId)
+        setRackFormData({ name: '', shelvesPerRack: 4, boxRows: 9, boxCols: 9 })
+        setAddRackDialogOpen(true)
+    }
+
+    const handleAddRack = async () => {
+        if (!addRackFacilityId) return
+        try {
+            const res = await fetch('/api/racks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ facilityId: addRackFacilityId, ...rackFormData }),
+            })
+            if (res.ok) {
+                toast({ title: '添加成功', description: '架子已添加' })
+                setAddRackDialogOpen(false)
+                fetchFacilities()
+                fetchFacilityDetails(addRackFacilityId)
+            } else {
+                const data = await res.json()
+                toast({ title: '添加失败', description: data.error, variant: 'destructive' })
+            }
+        } catch (error) {
+            toast({ title: '添加失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Delete rack
+    const handleDeleteRack = async () => {
+        if (!deletingRackId) return
+        try {
+            const res = await fetch(`/api/racks?id=${deletingRackId}`, { method: 'DELETE' })
+            if (res.ok) {
+                toast({ title: '删除成功', description: '架子已删除' })
+                setDeleteRackDialogOpen(false)
+                fetchFacilities()
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '删除失败', description: data.error, variant: 'destructive' })
+            }
+        } catch (error) {
+            toast({ title: '删除失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Add box handlers
+    const openAddBoxDialog = (shelfId: string) => {
+        setAddBoxShelfId(shelfId)
+        setBoxFormData({ name: '', rows: 9, columns: 9 })
+        setAddBoxDialogOpen(true)
+    }
+
+    const handleAddBox = async () => {
+        if (!addBoxShelfId) return
+        try {
+            const res = await fetch('/api/boxes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shelfId: addBoxShelfId, ...boxFormData }),
+            })
+            if (res.ok) {
+                toast({ title: '添加成功', description: '盒子已添加' })
+                setAddBoxDialogOpen(false)
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '添加失败', description: data.error, variant: 'destructive' })
+            }
+        } catch (error) {
+            toast({ title: '添加失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Delete box
+    const handleDeleteBox = async () => {
+        if (!deletingBoxId) return
+        try {
+            const res = await fetch(`/api/boxes?id=${deletingBoxId}`, { method: 'DELETE' })
+            if (res.ok) {
+                toast({ title: '删除成功', description: '盒子已删除' })
+                setDeleteBoxDialogOpen(false)
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '删除失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '删除失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // 权限检查：非管理员显示无权限页面
+    if (status === 'loading') {
+        return (
+            <div className="min-h-screen bg-background">
+                <TopNav />
+                <main className="container mx-auto px-4 py-6 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                </main>
+            </div>
+        )
+    }
+
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen bg-background">
+                <TopNav />
+                <main className="container mx-auto px-4 py-6">
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <ShieldAlert className="h-16 w-16 text-muted-foreground mb-4" />
+                        <h1 className="text-2xl font-bold mb-2">无访问权限</h1>
+                        <p className="text-muted-foreground text-center max-w-md">
+                            只有管理员可以访问系统设置页面。如需管理员权限，请联系系统管理员。
+                        </p>
+                        <Button className="mt-6" onClick={() => router.push('/')}>
+                            返回首页
+                        </Button>
+                    </div>
+                </main>
+            </div>
+        )
+    }
+
     return (
         <div className="min-h-screen bg-background">
             <TopNav />
@@ -78,7 +376,6 @@ export default function SettingsPage() {
                     <Breadcrumbs />
                 </div>
 
-                {/* Page Header */}
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold">系统设置</h1>
                     <p className="text-muted-foreground text-sm mt-1">
@@ -134,25 +431,133 @@ export default function SettingsPage() {
                                         </div>
                                     ) : facilities.length === 0 ? (
                                         <div className="text-center py-8 text-muted-foreground">
-                                            暂无设施，点击"新增设施"开始创建
+                                            暂无设施，点击&quot;新增设施&quot;开始创建
                                         </div>
                                     ) : (
                                         facilities.map((facility) => (
-                                            <div key={facility.id} className="flex items-center justify-between p-4 border rounded-lg">
-                                                <div>
-                                                    <p className="font-medium">{facility.name}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {facility.type} | {facility.totalRacks} 货架
-                                                    </p>
+                                            <div key={facility.id} className="border rounded-lg">
+                                                <div className="flex items-center justify-between p-4">
+                                                    <div
+                                                        className="flex items-center gap-2 cursor-pointer flex-1"
+                                                        onClick={() => toggleFacilityExpand(facility.id)}
+                                                    >
+                                                        {expandedFacility === facility.id ? (
+                                                            <ChevronUp className="h-4 w-4" />
+                                                        ) : (
+                                                            <ChevronDown className="h-4 w-4" />
+                                                        )}
+                                                        <div>
+                                                            <p className="font-medium">{facility.name}</p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {facility.type} | {facility.totalRacks} 货架
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => openEditDialog(facility)}
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-destructive"
+                                                            onClick={() => openDeleteDialog(facility)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <Button variant="ghost" size="icon">
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="text-destructive">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
+
+                                                {/* Expanded content: Racks and Boxes */}
+                                                {expandedFacility === facility.id && (
+                                                    <div className="border-t p-4 bg-muted/30">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <h4 className="text-sm font-medium">架子管理</h4>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => openAddRackDialog(facility.id)}
+                                                            >
+                                                                <Plus className="h-3 w-3 mr-1" />
+                                                                添加架子
+                                                            </Button>
+                                                        </div>
+
+                                                        {facilityDetails[facility.id]?.racks?.map((rack) => (
+                                                            <div key={rack.id} className="ml-4 mb-3 border-l-2 pl-4">
+                                                                <div className="flex items-center justify-between py-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Layers className="h-4 w-4 text-muted-foreground" />
+                                                                        <span className="font-medium">{rack.name}</span>
+                                                                        <Badge variant="secondary">{rack.totalShelves} 层</Badge>
+                                                                    </div>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-7 w-7 text-destructive"
+                                                                        onClick={() => {
+                                                                            setDeletingRackId(rack.id)
+                                                                            setDeleteRackDialogOpen(true)
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
+
+                                                                {/* Shelves and Boxes */}
+                                                                {rack.shelves?.map((shelf) => (
+                                                                    <div key={shelf.id} className="ml-4 py-1">
+                                                                        <div className="flex items-center justify-between">
+                                                                            <span className="text-sm text-muted-foreground">{shelf.name}</span>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="flex gap-1">
+                                                                                    {shelf.boxes?.map((box) => (
+                                                                                        <div
+                                                                                            key={box.id}
+                                                                                            className="flex items-center gap-1 px-2 py-1 bg-background border rounded text-xs"
+                                                                                        >
+                                                                                            <Package className="h-3 w-3" />
+                                                                                            {box.name}
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-4 w-4 text-destructive"
+                                                                                                onClick={() => {
+                                                                                                    setDeletingBoxId(box.id)
+                                                                                                    setDeleteBoxDialogOpen(true)
+                                                                                                }}
+                                                                                            >
+                                                                                                <Trash2 className="h-2 w-2" />
+                                                                                            </Button>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-6 w-6"
+                                                                                    onClick={() => openAddBoxDialog(shelf.id)}
+                                                                                >
+                                                                                    <Plus className="h-3 w-3" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ))}
+
+                                                        {!facilityDetails[facility.id] && (
+                                                            <div className="flex items-center justify-center py-4">
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))
                                     )}
@@ -207,6 +612,205 @@ export default function SettingsPage() {
                     </TabsContent>
                 </Tabs>
             </main>
+
+            {/* Edit Facility Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>编辑设施</DialogTitle>
+                        <DialogDescription>修改设施基本信息</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>设施名称</Label>
+                            <Input
+                                value={editFormData.name}
+                                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>设施类型</Label>
+                            <Select
+                                value={editFormData.type}
+                                onValueChange={(value) => setEditFormData(prev => ({ ...prev, type: value }))}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="-80°C 冰箱">-80°C 冰箱</SelectItem>
+                                    <SelectItem value="液氮罐">液氮罐</SelectItem>
+                                    <SelectItem value="-20°C 冰箱">-20°C 冰箱</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>描述</Label>
+                            <Input
+                                value={editFormData.description}
+                                onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>取消</Button>
+                        <Button onClick={handleUpdateFacility}>保存</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Facility Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {canDelete ? '确认删除' : '无法删除'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {canDelete
+                                ? `确定要删除设施 "${deletingFacility?.name}" 吗？此操作不可撤销。`
+                                : `设施 "${deletingFacility?.name}" 内还有 ${sampleCount} 个细胞样本，无法删除。请先清空设施内的样本。`
+                            }
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        {canDelete && (
+                            <AlertDialogAction onClick={handleDeleteFacility} className="bg-destructive text-destructive-foreground">
+                                删除
+                            </AlertDialogAction>
+                        )}
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Add Rack Dialog */}
+            <Dialog open={addRackDialogOpen} onOpenChange={setAddRackDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>添加架子</DialogTitle>
+                        <DialogDescription>配置新架子的参数</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>架子名称（可选）</Label>
+                            <Input
+                                placeholder="自动生成"
+                                value={rackFormData.name}
+                                onChange={(e) => setRackFormData(prev => ({ ...prev, name: e.target.value }))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>层数</Label>
+                            <Input
+                                type="number"
+                                value={rackFormData.shelvesPerRack}
+                                onChange={(e) => setRackFormData(prev => ({ ...prev, shelvesPerRack: parseInt(e.target.value) || 1 }))}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>盒子行数</Label>
+                                <Input
+                                    type="number"
+                                    value={rackFormData.boxRows}
+                                    onChange={(e) => setRackFormData(prev => ({ ...prev, boxRows: parseInt(e.target.value) || 1 }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>盒子列数</Label>
+                                <Input
+                                    type="number"
+                                    value={rackFormData.boxCols}
+                                    onChange={(e) => setRackFormData(prev => ({ ...prev, boxCols: parseInt(e.target.value) || 1 }))}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAddRackDialogOpen(false)}>取消</Button>
+                        <Button onClick={handleAddRack}>添加</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Box Dialog */}
+            <Dialog open={addBoxDialogOpen} onOpenChange={setAddBoxDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>添加盒子</DialogTitle>
+                        <DialogDescription>配置新盒子的参数</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>盒子名称（可选）</Label>
+                            <Input
+                                placeholder="自动生成"
+                                value={boxFormData.name}
+                                onChange={(e) => setBoxFormData(prev => ({ ...prev, name: e.target.value }))}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>行数</Label>
+                                <Input
+                                    type="number"
+                                    value={boxFormData.rows}
+                                    onChange={(e) => setBoxFormData(prev => ({ ...prev, rows: parseInt(e.target.value) || 1 }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>列数</Label>
+                                <Input
+                                    type="number"
+                                    value={boxFormData.columns}
+                                    onChange={(e) => setBoxFormData(prev => ({ ...prev, columns: parseInt(e.target.value) || 1 }))}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAddBoxDialogOpen(false)}>取消</Button>
+                        <Button onClick={handleAddBox}>添加</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Rack Dialog */}
+            <AlertDialog open={deleteRackDialogOpen} onOpenChange={setDeleteRackDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除架子</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除这个架子吗？如果架子内有细胞样本，将无法删除。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteRack} className="bg-destructive text-destructive-foreground">
+                            删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Box Dialog */}
+            <AlertDialog open={deleteBoxDialogOpen} onOpenChange={setDeleteBoxDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除盒子</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除这个盒子吗？如果盒子内有细胞样本，将无法删除。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteBox} className="bg-destructive text-destructive-foreground">
+                            删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

@@ -6,16 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { SampleEntryForm } from '@/components/features/SampleEntryForm'
 import { BatchCheckInDialog } from '@/components/features/BatchCheckInDialog'
 import { BatchCheckOutDialog } from '@/components/features/BatchCheckOutDialog'
 import { BatchEditDialog } from '@/components/features/BatchEditDialog'
@@ -27,6 +18,8 @@ import {
     Building2,
     LayoutGrid,
     Package,
+    LogOut,
+    Pencil,
 } from 'lucide-react'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSlotSelection, SlotInfo, SelectionType } from '@/hooks/useSlotSelection'
@@ -61,9 +54,9 @@ interface Rack {
     id: string
     name: string
     code: string
-    shelves: number
+    totalShelves: number
+    shelves: ShelfDetail[]
     occupancy: number
-    shelvesDetail?: ShelfDetail[]
 }
 
 interface BoxInfo {
@@ -341,7 +334,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                     disabled={selectionType !== 'empty'}
                     onClick={handleCheckInClick}
                 >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4" />
                     入库 {selectionType === 'empty' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
                 </Button>
                 <Button
@@ -350,6 +343,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                     disabled={selectionType !== 'occupied'}
                     onClick={handleCheckOutClick}
                 >
+                    <LogOut className="h-4 w-4" />
                     出库 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
                 </Button>
                 <Button
@@ -358,6 +352,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                     disabled={selectionType !== 'occupied'}
                     onClick={handleEditClick}
                 >
+                    <Pencil className="h-4 w-4" />
                     编辑 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
                 </Button>
 
@@ -373,79 +368,82 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                 </div>
             </div>
 
-            {/* Column headers */}
-            <div className="flex gap-1 mb-1 ml-6">
-                {Array.from({ length: columns }, (_, i) => (
-                    <div key={i} className="w-8 h-6 flex items-center justify-center text-xs text-muted-foreground font-medium">
-                        {i + 1}
-                    </div>
-                ))}
-            </div>
-
-            {/* Grid with row labels */}
-            <TooltipProvider>
-                {Array.from({ length: rows }, (_, rowIndex) => (
-                    <div key={rowIndex} className="flex gap-1 mb-1">
-                        <div className="w-5 h-8 flex items-center justify-center text-xs text-muted-foreground font-medium">
-                            {rowLabels[rowIndex]}
+            {/* Grid container - centered */}
+            <div className="flex flex-col items-center">
+                {/* Column headers */}
+                <div className="inline-flex gap-1 mb-1 ml-6">
+                    {Array.from({ length: columns }, (_, i) => (
+                        <div key={i} className="w-8 h-6 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                            {i + 1}
                         </div>
-                        {Array.from({ length: columns }, (_, colIndex) => {
-                            const position = rowIndex * columns + colIndex + 1
-                            const slot = slotMap.get(position)
-                            const slotInfo = slotsInfo.find(s => s.position === position)
-                            const isOccupied = slot?.status === 'OCCUPIED'
-                            const isSlotSelected = slot ? isSelected(slot.id) : false
-                            const isBatchMember = slot ? batchGroupSlotIds.has(slot.id) : false
+                    ))}
+                </div>
 
-                            return (
-                                <Tooltip key={colIndex}>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={(e) => slotInfo && handleSlotClick(slotInfo, e)}
-                                            className={`w-8 h-8 rounded-sm border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-[10px] font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember)}`}
-                                        >
-                                            {isOccupied && slot?.sample?.type?.slice(0, 2)}
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="max-w-[200px]">
-                                        <p className="font-medium">{rowLabels[rowIndex]}{colIndex + 1}</p>
-                                        {isOccupied && slot?.sample ? (
-                                            <div className="text-xs space-y-0.5 mt-1">
-                                                <p>样本: {slot.sample.name}</p>
-                                                <p>类型: {slot.sample.type}</p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-muted-foreground">空闲</p>
-                                        )}
-                                    </TooltipContent>
-                                </Tooltip>
-                            )
-                        })}
+                {/* Grid with row labels */}
+                <TooltipProvider>
+                    {Array.from({ length: rows }, (_, rowIndex) => (
+                        <div key={rowIndex} className="inline-flex gap-1 mb-1">
+                            <div className="w-5 h-8 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                                {rowLabels[rowIndex]}
+                            </div>
+                            {Array.from({ length: columns }, (_, colIndex) => {
+                                const position = rowIndex * columns + colIndex + 1
+                                const slot = slotMap.get(position)
+                                const slotInfo = slotsInfo.find(s => s.position === position)
+                                const isOccupied = slot?.status === 'OCCUPIED'
+                                const isSlotSelected = slot ? isSelected(slot.id) : false
+                                const isBatchMember = slot ? batchGroupSlotIds.has(slot.id) : false
+
+                                return (
+                                    <Tooltip key={colIndex}>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={(e) => slotInfo && handleSlotClick(slotInfo, e)}
+                                                className={`w-8 h-8 rounded-sm border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-[10px] font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember)}`}
+                                            >
+                                                {isOccupied && slot?.sample?.type?.slice(0, 2)}
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-[200px]">
+                                            <p className="font-medium">{rowLabels[rowIndex]}{colIndex + 1}</p>
+                                            {isOccupied && slot?.sample ? (
+                                                <div className="text-xs space-y-0.5 mt-1">
+                                                    <p>样本: {slot.sample.name}</p>
+                                                    <p>类型: {slot.sample.type}</p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-muted-foreground">空闲</p>
+                                            )}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )
+                            })}
+                        </div>
+                    ))}
+                </TooltipProvider>
+
+                {/* Legend */}
+                <div className="inline-flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground justify-center">
+                    <div className="flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-sm bg-primary" />
+                        <span>已占用</span>
                     </div>
-                ))}
-            </TooltipProvider>
-
-            {/* Legend */}
-            <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded-sm bg-primary" />
-                    <span>已占用</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded-sm bg-muted border" />
-                    <span>空闲</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded-sm bg-green-100 border-2 border-green-500" />
-                    <span>空闲选中</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded-sm bg-yellow-100 border-2 border-yellow-500" />
-                    <span>已占用选中</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded-sm bg-red-50 border-2 border-red-500" />
-                    <span>同批次</span>
+                    <div className="flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-sm bg-muted border" />
+                        <span>空闲</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-sm bg-green-100 border-2 border-green-500" />
+                        <span>空闲选中</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-sm bg-yellow-100 border-2 border-yellow-500" />
+                        <span>已占用选中</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-sm bg-red-50 border-2 border-red-500" />
+                        <span>同批次</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -469,7 +467,6 @@ export default function InventoryPage() {
     const [selectedRack, setSelectedRack] = useState<Rack | null>(null)
     const [selectedBox, setSelectedBox] = useState<BoxInfo | null>(null)
 
-    const [sampleDialogOpen, setSampleDialogOpen] = useState(false)
 
     // Dialog states for batch operations
     const [checkInDialogOpen, setCheckInDialogOpen] = useState(false)
@@ -557,11 +554,23 @@ export default function InventoryPage() {
             const data = await res.json()
             const rack = data.rack
             if (rack?.shelves) {
-                const shelfBoxes = rack.shelves.flatMap((shelf: { boxes: BoxInfo[] }) =>
-                    shelf.boxes.map((box: BoxInfo) => ({
-                        ...box,
-                        occupied: box.occupied || 0,
-                        total: box.total || box.rows * box.columns,
+                // Define type for box with slots from API
+                interface BoxWithSlots {
+                    id: string
+                    name: string
+                    rows: number
+                    columns: number
+                    slots?: Array<{ status: string }>
+                }
+                const shelfBoxes = rack.shelves.flatMap((shelf: { boxes: BoxWithSlots[] }) =>
+                    shelf.boxes.map((box: BoxWithSlots) => ({
+                        id: box.id,
+                        name: box.name,
+                        rows: box.rows,
+                        columns: box.columns,
+                        // Calculate occupied count from slots
+                        occupied: box.slots?.filter((slot: { status: string }) => slot.status === 'OCCUPIED').length || 0,
+                        total: box.rows * box.columns,
                     }))
                 )
                 setBoxes(shelfBoxes)
@@ -669,11 +678,6 @@ export default function InventoryPage() {
         fetchBoxDetail(box.id)
     }
 
-    const handleSampleSuccess = () => {
-        setSampleDialogOpen(false)
-        if (selectedBox) fetchBoxDetail(selectedBox.id)
-    }
-
     if (loading) {
         return (
             <div className="min-h-screen bg-background">
@@ -692,29 +696,6 @@ export default function InventoryPage() {
             <main className="container mx-auto px-4 py-6">
                 <div className="mb-6">
                     <Breadcrumbs />
-                </div>
-
-                {/* Page Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold">细胞数据详情</h1>
-                        <p className="text-muted-foreground text-sm mt-1">浏览和管理存储设施中的样本</p>
-                    </div>
-                    <Dialog open={sampleDialogOpen} onOpenChange={setSampleDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button size="sm">
-                                <Plus className="mr-2 h-4 w-4" />
-                                新增样本
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                                <DialogTitle>添加新样本</DialogTitle>
-                                <DialogDescription>填写样本信息进行入库</DialogDescription>
-                            </DialogHeader>
-                            <SampleEntryForm onSuccess={handleSampleSuccess} />
-                        </DialogContent>
-                    </Dialog>
                 </div>
 
                 {/* Two Column Layout: Left Navigation + Right Grid */}
@@ -798,7 +779,7 @@ export default function InventoryPage() {
                                                         <div>
                                                             <p className="font-medium text-sm">{rack.name}</p>
                                                             <p className={`text-xs ${selectedRack?.id === rack.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                                {rack.shelves} 层
+                                                                {rack.totalShelves} 层
                                                             </p>
                                                         </div>
                                                         <div className="flex items-center gap-2">
@@ -806,8 +787,8 @@ export default function InventoryPage() {
                                                             <ChevronRight className="h-4 w-4" />
                                                         </div>
                                                     </div>
-                                                    {rack.shelvesDetail && (
-                                                        <ChildProgressBar items={rack.shelvesDetail} onItemClick={(shelf) => handleShelfBarClick(shelf, rack.id)} />
+                                                    {rack.shelves && (
+                                                        <ChildProgressBar items={rack.shelves} onItemClick={(shelf) => handleShelfBarClick(shelf, rack.id)} />
                                                     )}
                                                 </div>
                                             ))

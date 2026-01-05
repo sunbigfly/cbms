@@ -79,11 +79,11 @@ export async function GET(request: NextRequest) {
                 let total = 0
                 let occupied = 0
 
-                // Calculate per-shelf stats
+                // Calculate per-shelf stats with boxes
                 const shelvesDetail = rack.shelves.map(shelf => {
                     let shelfTotal = 0
                     let shelfUsed = 0
-                    for (const box of shelf.boxes) {
+                    const boxesDetail = shelf.boxes.map(box => {
                         for (const slot of box.slots) {
                             shelfTotal++
                             total++
@@ -92,12 +92,19 @@ export async function GET(request: NextRequest) {
                                 occupied++
                             }
                         }
-                    }
+                        return {
+                            id: box.id,
+                            name: box.name,
+                            rows: box.rows,
+                            columns: box.columns,
+                        }
+                    })
                     return {
                         id: shelf.id,
                         name: shelf.name,
                         order: shelf.order,
                         occupancy: shelfTotal > 0 ? Math.round((shelfUsed / shelfTotal) * 100) : 0,
+                        boxes: boxesDetail,
                     }
                 })
 
@@ -105,9 +112,9 @@ export async function GET(request: NextRequest) {
                     id: rack.id,
                     name: rack.name,
                     code: rack.code,
-                    shelves: rack.totalShelves,
+                    totalShelves: rack.totalShelves,
+                    shelves: shelvesDetail,
                     occupancy: total > 0 ? Math.round((occupied / total) * 100) : 0,
-                    shelvesDetail,
                 }
             })
             return NextResponse.json({ racks: racksWithStats })

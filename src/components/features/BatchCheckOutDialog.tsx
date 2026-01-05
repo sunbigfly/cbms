@@ -215,13 +215,15 @@ export function BatchCheckOutDialog({
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>确认出库操作</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            您确定要出库 {sampleIds.length} 个样本吗？此操作将：
-                            <ul className="list-disc list-inside mt-2 space-y-1">
-                                <li>清空对应槽位</li>
-                                <li>记录出库日志</li>
-                                <li>此操作<strong>不可撤销</strong></li>
-                            </ul>
+                        <AlertDialogDescription asChild>
+                            <div className="text-sm text-muted-foreground">
+                                您确定要出库 {sampleIds.length} 个样本吗？此操作将：
+                                <ul className="list-disc list-inside mt-2 space-y-1">
+                                    <li>清空对应槽位</li>
+                                    <li>记录出库日志</li>
+                                    <li>此操作<strong>不可撤销</strong></li>
+                                </ul>
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -23,18 +24,17 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form'
+import { Plus, ChevronDown } from 'lucide-react'
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
-import { Plus } from 'lucide-react'
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 
 const sampleSchema = z.object({
     name: z.string().min(1, '请输入样本名称'),
-    type: z.string().min(1, '请选择细胞类型'),
+    type: z.string().min(1, '请选择或输入细胞类型'),
     batchNo: z.string().optional(),
     quantity: z.coerce.number().min(0.1, '数量必须大于0'),
     unit: z.string().default('ml'),
@@ -48,7 +48,8 @@ const sampleSchema = z.object({
 
 type SampleFormData = z.infer<typeof sampleSchema>
 
-const cellTypes = [
+// 预设细胞类型
+const cellTypePresets = [
     'CHO-K1',
     'CHO-S',
     'CHO-DG44',
@@ -61,13 +62,85 @@ const cellTypes = [
     'MDCK',
 ]
 
-const mediaTypes = [
+// 预设冻存液类型
+const mediaTypePresets = [
     'CryoStor CS10',
     'CryoStor CS5',
     'DMSO 10%',
     'DMSO 5%',
     'FBS + DMSO',
 ]
+
+// 可编辑下拉框组件
+interface EditableSelectProps {
+    value: string
+    onChange: (value: string) => void
+    options: string[]
+    placeholder: string
+    className?: string
+}
+
+function EditableSelect({ value, onChange, options, placeholder, className }: EditableSelectProps) {
+    const [open, setOpen] = useState(false)
+    const [inputValue, setInputValue] = useState(value)
+
+    // 同步外部值
+    useEffect(() => {
+        setInputValue(value)
+    }, [value])
+
+    const filteredOptions = options.filter(opt =>
+        opt.toLowerCase().includes(inputValue.toLowerCase())
+    )
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = e.target.value
+        setInputValue(newValue)
+        onChange(newValue)
+    }
+
+    const handleSelect = (option: string) => {
+        setInputValue(option)
+        onChange(option)
+        setOpen(false)
+    }
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <div className={cn("relative", className)}>
+                    <Input
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onFocus={() => setOpen(true)}
+                        placeholder={placeholder}
+                        className="pr-8"
+                    />
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+                <div className="max-h-48 overflow-y-auto">
+                    {filteredOptions.length === 0 ? (
+                        <div className="py-2 px-3 text-sm text-muted-foreground">
+                            无匹配项，直接输入自定义值
+                        </div>
+                    ) : (
+                        filteredOptions.map((option) => (
+                            <div
+                                key={option}
+                                className="py-2 px-3 text-sm cursor-pointer hover:bg-accent"
+                                onClick={() => handleSelect(option)}
+                            >
+                                {option}
+                            </div>
+                        ))
+                    )}
+                </div>
+            </PopoverContent>
+        </Popover>
+    )
+}
 
 interface SampleEntryFormProps {
     slotId?: string
@@ -77,6 +150,7 @@ interface SampleEntryFormProps {
 }
 
 export function SampleEntryForm({ slotId, slotLabel, boxName, onSuccess }: SampleEntryFormProps) {
+    const { data: session } = useSession()
     const [open, setOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -96,6 +170,13 @@ export function SampleEntryForm({ slotId, slotLabel, boxName, onSuccess }: Sampl
             notes: '',
         },
     })
+
+    // 当对话框打开时，自动填充当前登录用户
+    useEffect(() => {
+        if (open && session?.user?.name) {
+            form.setValue('owner', session.user.name)
+        }
+    }, [open, session, form])
 
     async function onSubmit(data: SampleFormData) {
         setIsSubmitting(true)
@@ -118,7 +199,6 @@ export function SampleEntryForm({ slotId, slotLabel, boxName, onSuccess }: Sampl
             onSuccess?.()
         } catch (error) {
             console.error('Error creating sample:', error)
-            // TODO: Show error toast
         } finally {
             setIsSubmitting(false)
         }
@@ -160,27 +240,22 @@ export function SampleEntryForm({ slotId, slotLabel, boxName, onSuccess }: Sampl
                                 )}
                             />
 
-                            {/* Cell Type */}
+                            {/* Cell Type - Editable Select */}
                             <FormField
                                 control={form.control}
                                 name="type"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>细胞类型 *</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="选择类型" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {cellTypes.map((type) => (
-                                                    <SelectItem key={type} value={type}>
-                                                        {type}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <FormControl>
+                                            <EditableSelect
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                options={cellTypePresets}
+                                                placeholder="选择或输入细胞类型"
+                                            />
+                                        </FormControl>
+                                        <FormDescription>可选择预设或输入自定义类型</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -262,33 +337,28 @@ export function SampleEntryForm({ slotId, slotLabel, boxName, onSuccess }: Sampl
                                 )}
                             />
 
-                            {/* Media */}
+                            {/* Media - Editable Select */}
                             <FormField
                                 control={form.control}
                                 name="media"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>冻存液</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="选择冻存液" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {mediaTypes.map((media) => (
-                                                    <SelectItem key={media} value={media}>
-                                                        {media}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <FormControl>
+                                            <EditableSelect
+                                                value={field.value || ''}
+                                                onChange={field.onChange}
+                                                options={mediaTypePresets}
+                                                placeholder="选择或输入冻存液"
+                                            />
+                                        </FormControl>
+                                        <FormDescription>可选择预设或输入自定义</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
 
-                            {/* Owner */}
+                            {/* Owner - Auto-filled with current user */}
                             <FormField
                                 control={form.control}
                                 name="owner"
@@ -298,6 +368,9 @@ export function SampleEntryForm({ slotId, slotLabel, boxName, onSuccess }: Sampl
                                         <FormControl>
                                             <Input placeholder="输入负责人姓名" {...field} />
                                         </FormControl>
+                                        <FormDescription>
+                                            {session?.user?.name ? '已自动填充当前登录用户' : '请输入负责人姓名'}
+                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}

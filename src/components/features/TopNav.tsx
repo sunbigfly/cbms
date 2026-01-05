@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 import {
     LayoutDashboard,
     Database,
@@ -25,16 +26,34 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
+// 导航项配置，adminOnly 标记仅管理员可见
 const navItems = [
-    { href: '/', label: '首页', icon: LayoutDashboard },
-    { href: '/inventory', label: '细胞数据详情', icon: Database },
-    { href: '/audit', label: '历史记录', icon: History },
-    { href: '/reports', label: '报表', icon: BarChart3 },
-    { href: '/settings', label: '系统设置', icon: Settings },
+    { href: '/', label: '首页', icon: LayoutDashboard, adminOnly: false },
+    { href: '/inventory', label: '细胞数据详情', icon: Database, adminOnly: false },
+    { href: '/audit', label: '历史记录', icon: History, adminOnly: false },
+    { href: '/reports', label: '报表', icon: BarChart3, adminOnly: false },
+    { href: '/settings', label: '系统设置', icon: Settings, adminOnly: true },
 ]
 
 export function TopNav() {
     const pathname = usePathname()
+    const router = useRouter()
+    const { data: session, status } = useSession()
+
+    // 判断是否是管理员
+    const isAdmin = session?.user?.role === 'ADMIN'
+
+    // 过滤导航项：非管理员隐藏 adminOnly 项
+    const visibleNavItems = navItems.filter(item => !item.adminOnly || isAdmin)
+
+    const handleSignOut = async () => {
+        await signOut({ redirect: false })
+        router.push('/login')
+    }
+
+    // 获取用户显示名称
+    const userName = session?.user?.name || '用户'
+    const userInitial = userName[0].toUpperCase()
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -47,7 +66,7 @@ export function TopNav() {
 
                 {/* Main Navigation */}
                 <nav className="flex items-center gap-1 ml-4">
-                    {navItems.map((item) => {
+                    {visibleNavItems.map((item) => {
                         const Icon = item.icon
                         const isActive = pathname === item.href ||
                             (item.href !== '/' && pathname.startsWith(item.href))
@@ -85,37 +104,46 @@ export function TopNav() {
                 </div>
 
                 {/* User Menu */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-2">
-                            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium">
-                                A
-                            </div>
-                            <span className="hidden lg:inline-block text-sm">Admin</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuLabel>我的账户</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                            <User className="mr-2 h-4 w-4" />
-                            个人资料
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                            <Link href="/settings">
-                                <Settings className="mr-2 h-4 w-4" />
-                                系统设置
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">
-                            <LogOut className="mr-2 h-4 w-4" />
-                            退出登录
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {status === 'authenticated' ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="gap-2">
+                                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium">
+                                    {userInitial}
+                                </div>
+                                <span className="hidden lg:inline-block text-sm">{userName}</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>
+                                我的账户
+                                {isAdmin && <span className="ml-2 text-xs text-primary">(管理员)</span>}
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {isAdmin && (
+                                <DropdownMenuItem asChild>
+                                    <Link href="/settings">
+                                        <Settings className="mr-2 h-4 w-4" />
+                                        系统设置
+                                    </Link>
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                className="text-destructive cursor-pointer"
+                                onClick={handleSignOut}
+                            >
+                                <LogOut className="mr-2 h-4 w-4" />
+                                退出登录
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : (
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href="/login">登录</Link>
+                    </Button>
+                )}
             </div>
         </header>
     )
 }
-
