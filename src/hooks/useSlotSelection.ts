@@ -211,7 +211,7 @@ export function useSlotSelection(
     }, [isDragging])
 
     // Handle drag end - apply selection
-    const handleDragEnd = useCallback(() => {
+    const handleDragEnd = useCallback((event?: React.MouseEvent) => {
         if (!isDragging || !dragStartPos || !dragEndPos) {
             setIsDragging(false)
             setDragStartPos(null)
@@ -235,24 +235,62 @@ export function useSlotSelection(
             }
         }
 
-        // Check for mixed types
-        const hasEmpty = rangeSlots.some(s => s.status !== 'OCCUPIED')
-        const hasOccupied = rangeSlots.some(s => s.status === 'OCCUPIED')
-
-        if (hasEmpty && hasOccupied) {
-            onMixedSelectionError?.()
-        } else if (rangeSlots.length > 0) {
-            // Apply selection
-            setSelectedSlots(new Set(rangeSlots.map(s => s.id)))
-            // Update last clicked position to center of selection
-            const centerPos = rangeSlots[Math.floor(rangeSlots.length / 2)]?.position
-            if (centerPos) setLastClickedPosition(centerPos)
+        if (rangeSlots.length === 0) {
+            setIsDragging(false)
+            setDragStartPos(null)
+            setDragEndPos(null)
+            return
         }
+
+        // Determine if we should append to existing selection
+        const isAppend = event?.ctrlKey || event?.metaKey || event?.shiftKey
+
+        // Analyze the new range
+        const rangeHasEmpty = rangeSlots.some(s => s.status !== 'OCCUPIED')
+        const rangeHasOccupied = rangeSlots.some(s => s.status === 'OCCUPIED')
+
+        // Check for mixed types within the new range itself
+        if (rangeHasEmpty && rangeHasOccupied) {
+            onMixedSelectionError?.()
+            setIsDragging(false)
+            setDragStartPos(null)
+            setDragEndPos(null)
+            return
+        }
+
+        const rangeType = rangeHasOccupied ? 'occupied' : 'empty'
+
+        // If appending, check against existing selection
+        if (isAppend && selectedSlots.size > 0 && selectionType) {
+            if (selectionType !== 'mixed' && selectionType !== rangeType) {
+                // Trying to append different type
+                onMixedSelectionError?.()
+                setIsDragging(false)
+                setDragStartPos(null)
+                setDragEndPos(null)
+                return
+            }
+        }
+
+        // Apply selection
+        if (isAppend) {
+            setSelectedSlots(prev => {
+                const newSet = new Set(prev)
+                rangeSlots.forEach(s => newSet.add(s.id))
+                return newSet
+            })
+        } else {
+            setSelectedSlots(new Set(rangeSlots.map(s => s.id)))
+        }
+
+        // Update last clicked position to center of selection
+        const centerPos = rangeSlots[Math.floor(rangeSlots.length / 2)]?.position
+        if (centerPos) setLastClickedPosition(centerPos)
 
         setIsDragging(false)
         setDragStartPos(null)
         setDragEndPos(null)
-    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, onMixedSelectionError])
+    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, onMixedSelectionError, selectedSlots, selectionType])
 
     // Check if a cell is in the current drag selection area
     const isInDragSelection = useCallback((row: number, col: number) => {
