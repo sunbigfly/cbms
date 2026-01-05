@@ -109,10 +109,9 @@ export function SideNav() {
                                 href={item.href}
                                 className={cn(
                                     'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors overflow-hidden',
-                                    'hover:bg-accent hover:text-accent-foreground',
                                     isActive
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'text-muted-foreground',
+                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                                     collapsed && 'justify-center px-2'
                                 )}
                             >

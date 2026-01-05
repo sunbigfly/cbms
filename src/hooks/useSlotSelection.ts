@@ -219,6 +219,21 @@ export function useSlotSelection(
             return
         }
 
+        // Check if it is a click (start == end) - delegate to handleSlotClick
+        if (dragStartPos.row === dragEndPos.row && dragStartPos.col === dragEndPos.col) {
+            const pos = dragStartPos.row * columns + dragStartPos.col + 1
+            const slot = slotMap.get(pos)
+
+            if (slot && event) {
+                handleSlotClick(slot, event)
+            }
+
+            setIsDragging(false)
+            setDragStartPos(null)
+            setDragEndPos(null)
+            return
+        }
+
         // Calculate rectangle bounds
         const minRow = Math.min(dragStartPos.row, dragEndPos.row)
         const maxRow = Math.max(dragStartPos.row, dragEndPos.row)
@@ -290,7 +305,7 @@ export function useSlotSelection(
         setIsDragging(false)
         setDragStartPos(null)
         setDragEndPos(null)
-    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, onMixedSelectionError, selectedSlots, selectionType])
+    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, onMixedSelectionError, selectedSlots, selectionType, handleSlotClick])
 
     // Check if a cell is in the current drag selection area
     const isInDragSelection = useCallback((row: number, col: number) => {
