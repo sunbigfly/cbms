@@ -127,10 +127,12 @@ export async function checkInSample(
         if (!slot) throw new Error('Slot not found')
         if (slot.status !== 'EMPTY') throw new Error('Slot is not empty')
 
-        // 2. Create sample
+        // 2. Create sample (排除 userId，避免传入 Prisma 未知字段)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { userId: _, ...sampleData } = data as typeof data & { userId?: string }
         const sample = await tx.sample.create({
             data: {
-                ...data,
+                ...sampleData,
                 slotId,
             },
         })
@@ -418,10 +420,12 @@ export async function batchCheckInSamples(
             if (!slot) throw new Error(`Slot ${slotId} not found`)
             if (slot.status !== 'EMPTY') throw new Error(`Slot ${slot.rowLabel}${slot.colLabel} is not empty`)
 
-            // Create sample
+            // Create sample (排除 userId，避免传入 Prisma 未知字段)
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { userId: _uid, ...sampleData } = data as typeof data & { userId?: string }
             const sample = await tx.sample.create({
                 data: {
-                    ...data,
+                    ...sampleData,
                     slotId,
                 },
             })

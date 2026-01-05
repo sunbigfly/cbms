@@ -59,9 +59,10 @@ const facilityTypes = [
 
 interface CreateFacilityWizardProps {
     onSuccess?: () => void
+    forcePrivate?: boolean // 强制创建为私有库
 }
 
-export function CreateFacilityWizard({ onSuccess }: CreateFacilityWizardProps) {
+export function CreateFacilityWizard({ onSuccess, forcePrivate = false }: CreateFacilityWizardProps) {
     const [open, setOpen] = useState(false)
     const [step, setStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -72,7 +73,7 @@ export function CreateFacilityWizard({ onSuccess }: CreateFacilityWizardProps) {
             name: '',
             type: '',
             description: '',
-            isPrivate: false,
+            isPrivate: forcePrivate, // 如果 forcePrivate 则默认为 true
             rackCount: 4,
             shelvesPerRack: 5,
             boxesPerShelf: 1,
@@ -219,29 +220,32 @@ export function CreateFacilityWizard({ onSuccess }: CreateFacilityWizardProps) {
                                     )}
                                 />
 
-                                <FormField
-                                    control={form.control}
-                                    name="isPrivate"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                            <FormControl>
-                                                <Checkbox
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                />
-                                            </FormControl>
-                                            <div className="space-y-1 leading-none">
-                                                <FormLabel className="flex items-center gap-1.5">
-                                                    <Lock className="h-4 w-4" />
-                                                    创建为私有库
-                                                </FormLabel>
-                                                <FormDescription>
-                                                    私有库只有您自己可以访问，不会出现在公共库列表中
-                                                </FormDescription>
-                                            </div>
-                                        </FormItem>
-                                    )}
-                                />
+                                {/* 仅在非强制私有模式下显示私有库选项 */}
+                                {!forcePrivate && (
+                                    <FormField
+                                        control={form.control}
+                                        name="isPrivate"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                                <div className="space-y-1 leading-none">
+                                                    <FormLabel className="flex items-center gap-1.5">
+                                                        <Lock className="h-4 w-4" />
+                                                        创建为私有库
+                                                    </FormLabel>
+                                                    <FormDescription>
+                                                        私有库只有您自己可以访问，不会出现在公共库列表中
+                                                    </FormDescription>
+                                                </div>
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
                             </div>
                         )}
 

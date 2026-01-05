@@ -12,6 +12,7 @@ import { BatchCheckOutDialog } from '@/components/features/BatchCheckOutDialog'
 import { BatchEditDialog } from '@/components/features/BatchEditDialog'
 import { SlotDetailPanel, SampleDetail } from '@/components/features/SlotDetailPanel'
 import { LibrarySwitch, LibraryMode } from '@/components/features/LibrarySwitch'
+import { CreateFacilityWizard } from '@/components/features/CreateFacilityWizard'
 import {
     ChevronRight,
     Plus,
@@ -404,7 +405,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                                 onClick={(e) => slotInfo && handleSlotClick(slotInfo, e)}
                                                 className={`w-8 h-8 rounded-sm border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-[10px] font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember)}`}
                                             >
-                                                {isOccupied && slot?.sample?.type?.slice(0, 2)}
+                                                {isOccupied && slot?.sample?.name?.slice(0, 2)}
                                             </button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="max-w-[200px]">
@@ -737,8 +738,26 @@ export default function InventoryPage() {
                                 <CardContent className="pt-4">
                                     {/* Facility List */}
                                     <TabsContent value="facility" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
+                                        {/* 私有库模式下显示创建按钮 */}
+                                        {libraryMode === 'private' && (
+                                            <div className="mb-3">
+                                                <CreateFacilityWizard
+                                                    forcePrivate={true}
+                                                    onSuccess={() => {
+                                                        // 刷新私有库列表
+                                                        fetch('/api/inventory?private=true')
+                                                            .then(res => res.json())
+                                                            .then(data => setFacilities(data.facilities || []))
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
                                         {facilities.length === 0 ? (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无设施</div>
+                                            <div className="text-center py-8 text-sm text-muted-foreground">
+                                                {libraryMode === 'private'
+                                                    ? '暂无私有库，点击上方按钮创建'
+                                                    : '暂无设施'}
+                                            </div>
                                         ) : (
                                             facilities.map((facility) => (
                                                 <div
