@@ -22,7 +22,17 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+
+const SIDEBAR_COOKIE_NAME = 'sidebar_collapsed'
+const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
+
+// 从 cookie 读取初始值（客户端）
+function getInitialCollapsed(): boolean {
+    if (typeof document === 'undefined') return false
+    const match = document.cookie.match(new RegExp(`(^| )${SIDEBAR_COOKIE_NAME}=([^;]+)`))
+    return match ? match[2] === 'true' : false
+}
 
 // 导航项配置，adminOnly 标记仅管理员可见
 const navItems = [
@@ -37,7 +47,18 @@ export function SideNav() {
     const pathname = usePathname()
     const router = useRouter()
     const { data: session, status } = useSession()
-    const [collapsed, setCollapsed] = useState(false)
+
+    // 使用 cookie 持久化收起/展开状态，初始值从 cookie 读取
+    const [collapsed, setCollapsedState] = useState(getInitialCollapsed)
+
+    // 包装 setCollapsed 以同时更新 cookie
+    const setCollapsed = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+        setCollapsedState((prev) => {
+            const newValue = typeof value === 'function' ? value(prev) : value
+            document.cookie = `${SIDEBAR_COOKIE_NAME}=${newValue}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+            return newValue
+        })
+    }, [])
 
     // 判断是否是管理员
     const isAdmin = session?.user?.role === 'ADMIN'
@@ -84,7 +105,7 @@ export function SideNav() {
                             <Link
                                 href={item.href}
                                 className={cn(
-                                    'flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors',
+                                    'flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors overflow-hidden',
                                     'hover:bg-accent hover:text-accent-foreground',
                                     isActive
                                         ? 'bg-primary text-primary-foreground'
@@ -93,7 +114,12 @@ export function SideNav() {
                                 )}
                             >
                                 <Icon className="h-5 w-5 flex-shrink-0" />
-                                {!collapsed && <span>{item.label}</span>}
+                                <span className={cn(
+                                    'whitespace-nowrap transition-all duration-300',
+                                    collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
+                                )}>
+                                    {item.label}
+                                </span>
                             </Link>
                         )
 

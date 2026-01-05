@@ -26,6 +26,18 @@ import {
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSlotSelection, SlotInfo, SelectionType } from '@/hooks/useSlotSelection'
 
+// Cookie 常量
+const LIBRARY_MODE_COOKIE = 'library_mode'
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
+
+// 从 cookie 读取 libraryMode 初始值
+function getInitialLibraryMode(): LibraryMode {
+    if (typeof document === 'undefined') return 'public'
+    const match = document.cookie.match(new RegExp(`(^| )${LIBRARY_MODE_COOKIE}=([^;]+)`))
+    const value = match ? match[2] : null
+    return value === 'private' ? 'private' : 'public'
+}
+
 // Types
 interface RackDetail {
     id: string
@@ -380,7 +392,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                 <div className="ml-auto text-xs text-muted-foreground">
                     <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选 |{' '}
                     <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选 |{' '}
-                    <span className="text-blue-600">🖱️ 拖拽框选</span>
+                    <span className="text-blue-600">拖拽框选</span>
                 </div>
             </div>
 
@@ -487,7 +499,13 @@ type NavigationLevel = 'facility' | 'rack' | 'box'
 export default function InventoryPage() {
     const [loading, setLoading] = useState(true)
     const [currentLevel, setCurrentLevel] = useState<NavigationLevel>('facility')
-    const [libraryMode, setLibraryMode] = useState<LibraryMode>('public')
+    const [libraryMode, setLibraryModeState] = useState<LibraryMode>(getInitialLibraryMode)
+
+    // 包装 setLibraryMode 以同时更新 cookie
+    const setLibraryMode = useCallback((value: LibraryMode) => {
+        document.cookie = `${LIBRARY_MODE_COOKIE}=${value}; path=/; max-age=${COOKIE_MAX_AGE}`
+        setLibraryModeState(value)
+    }, [])
 
     // Data
     const [facilities, setFacilities] = useState<Facility[]>([])
