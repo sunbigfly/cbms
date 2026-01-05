@@ -36,6 +36,14 @@ interface UseSlotSelectionReturn {
     selectRange: (startPos: number, endPos: number, slots: SlotInfo[], columns: number) => void
     getSelectedSlotIds: () => string[]
     isSelected: (slotId: string) => boolean
+    // Drag selection
+    isDragging: boolean
+    dragStartPos: { row: number; col: number } | null
+    dragEndPos: { row: number; col: number } | null
+    handleDragStart: (row: number, col: number, event: React.MouseEvent) => void
+    handleDragMove: (row: number, col: number) => void
+    handleDragEnd: () => void
+    isInDragSelection: (row: number, col: number) => boolean
 }
 
 /**
@@ -48,6 +56,11 @@ export function useSlotSelection(
 ): UseSlotSelectionReturn {
     const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set())
     const [lastClickedPosition, setLastClickedPosition] = useState<number | null>(null)
+
+    // Drag selection state
+    const [isDragging, setIsDragging] = useState(false)
+    const [dragStartPos, setDragStartPos] = useState<{ row: number; col: number } | null>(null)
+    const [dragEndPos, setDragEndPos] = useState<{ row: number; col: number } | null>(null)
 
     // Build slot map for quick lookup
     const slotMap = useMemo(() => {
@@ -181,6 +194,76 @@ export function useSlotSelection(
         return selectedSlots.has(slotId)
     }, [selectedSlots])
 
+    // Handle drag start
+    const handleDragStart = useCallback((row: number, col: number, event: React.MouseEvent) => {
+        // Only start drag on left mouse button
+        if (event.button !== 0) return
+        event.preventDefault()
+        setIsDragging(true)
+        setDragStartPos({ row, col })
+        setDragEndPos({ row, col })
+    }, [])
+
+    // Handle drag move
+    const handleDragMove = useCallback((row: number, col: number) => {
+        if (!isDragging) return
+        setDragEndPos({ row, col })
+    }, [isDragging])
+
+    // Handle drag end - apply selection
+    const handleDragEnd = useCallback(() => {
+        if (!isDragging || !dragStartPos || !dragEndPos) {
+            setIsDragging(false)
+            setDragStartPos(null)
+            setDragEndPos(null)
+            return
+        }
+
+        // Calculate rectangle bounds
+        const minRow = Math.min(dragStartPos.row, dragEndPos.row)
+        const maxRow = Math.max(dragStartPos.row, dragEndPos.row)
+        const minCol = Math.min(dragStartPos.col, dragEndPos.col)
+        const maxCol = Math.max(dragStartPos.col, dragEndPos.col)
+
+        // Collect all slots in the rectangle
+        const rangeSlots: SlotInfo[] = []
+        for (let r = minRow; r <= maxRow; r++) {
+            for (let c = minCol; c <= maxCol; c++) {
+                const pos = r * columns + c + 1
+                const slot = slotMap.get(pos)
+                if (slot) rangeSlots.push(slot)
+            }
+        }
+
+        // Check for mixed types
+        const hasEmpty = rangeSlots.some(s => s.status !== 'OCCUPIED')
+        const hasOccupied = rangeSlots.some(s => s.status === 'OCCUPIED')
+
+        if (hasEmpty && hasOccupied) {
+            onMixedSelectionError?.()
+        } else if (rangeSlots.length > 0) {
+            // Apply selection
+            setSelectedSlots(new Set(rangeSlots.map(s => s.id)))
+            // Update last clicked position to center of selection
+            const centerPos = rangeSlots[Math.floor(rangeSlots.length / 2)]?.position
+            if (centerPos) setLastClickedPosition(centerPos)
+        }
+
+        setIsDragging(false)
+        setDragStartPos(null)
+        setDragEndPos(null)
+    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, onMixedSelectionError])
+
+    // Check if a cell is in the current drag selection area
+    const isInDragSelection = useCallback((row: number, col: number) => {
+        if (!isDragging || !dragStartPos || !dragEndPos) return false
+        const minRow = Math.min(dragStartPos.row, dragEndPos.row)
+        const maxRow = Math.max(dragStartPos.row, dragEndPos.row)
+        const minCol = Math.min(dragStartPos.col, dragEndPos.col)
+        const maxCol = Math.max(dragStartPos.col, dragEndPos.col)
+        return row >= minRow && row <= maxRow && col >= minCol && col <= maxCol
+    }, [isDragging, dragStartPos, dragEndPos])
+
     return {
         selectedSlots,
         selectionType,
@@ -190,5 +273,13 @@ export function useSlotSelection(
         selectRange,
         getSelectedSlotIds,
         isSelected,
+        // Drag selection
+        isDragging,
+        dragStartPos,
+        dragEndPos,
+        handleDragStart,
+        handleDragMove,
+        handleDragEnd,
+        isInDragSelection,
     }
 }

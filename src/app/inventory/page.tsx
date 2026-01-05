@@ -196,7 +196,13 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
         handleSlotClick,
         clearSelection,
         isSelected,
-        getSelectedSlotIds
+        getSelectedSlotIds,
+        // Drag selection
+        isDragging,
+        handleDragStart,
+        handleDragMove,
+        handleDragEnd,
+        isInDragSelection,
     } = useSlotSelection(
         slotsInfo,
         box?.columns || 0,
@@ -301,9 +307,14 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
     const slotMap = new Map<number, Slot>()
     slots.forEach(slot => slotMap.set(slot.position, slot))
 
-    // Get slot style based on status, selection, and batch group
-    const getSlotStyle = (slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean) => {
+    // Get slot style based on status, selection, batch group, and drag state
+    const getSlotStyle = (slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean, isInDrag: boolean) => {
         const isOccupied = slot?.status === 'OCCUPIED'
+
+        // Drag selection preview (blue border)
+        if (isInDrag && !isSlotSelected) {
+            return 'bg-blue-50 border-blue-500 ring-2 ring-blue-400'
+        }
 
         // Batch group member (red border) - highest priority for non-selected
         if (isBatchMember && !isSlotSelected) {
@@ -368,12 +379,17 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
 
                 <div className="ml-auto text-xs text-muted-foreground">
                     <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选 |{' '}
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选 |{' '}
+                    <span className="text-blue-600">🖱️ 拖拽框选</span>
                 </div>
             </div>
 
             {/* Grid container - centered */}
-            <div className="flex flex-col items-center">
+            <div
+                className={`flex flex-col items-center select-none ${isDragging ? 'cursor-crosshair' : ''}`}
+                onMouseUp={handleDragEnd}
+                onMouseLeave={handleDragEnd}
+            >
                 {/* Column headers */}
                 <div className="inline-flex gap-1.5 mb-1 ml-8">
                     {Array.from({ length: columns }, (_, i) => (
@@ -397,13 +413,21 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                 const isOccupied = slot?.status === 'OCCUPIED'
                                 const isSlotSelected = slot ? isSelected(slot.id) : false
                                 const isBatchMember = slot ? batchGroupSlotIds.has(slot.id) : false
+                                const isInDrag = isInDragSelection(rowIndex, colIndex)
 
                                 return (
                                     <Tooltip key={colIndex}>
                                         <TooltipTrigger asChild>
                                             <button
-                                                onClick={(e) => slotInfo && handleSlotClick(slotInfo, e)}
-                                                className={`w-10 h-10 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-xs font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember)}`}
+                                                onClick={(e) => {
+                                                    // Only handle click if not dragging
+                                                    if (!isDragging && slotInfo) {
+                                                        handleSlotClick(slotInfo, e)
+                                                    }
+                                                }}
+                                                onMouseDown={(e) => handleDragStart(rowIndex, colIndex, e)}
+                                                onMouseEnter={() => handleDragMove(rowIndex, colIndex)}
+                                                className={`w-10 h-10 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-xs font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag)}`}
                                             >
                                                 {isOccupied && slot?.sample?.name?.slice(0, 2)}
                                             </button>
@@ -447,6 +471,10 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                     <div className="flex items-center gap-1">
                         <div className="w-4 h-4 rounded-sm bg-red-50 border-2 border-red-500" />
                         <span>同批次</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-sm bg-blue-50 border-2 border-blue-500" />
+                        <span>拖拽选中</span>
                     </div>
                 </div>
             </div>
