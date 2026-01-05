@@ -198,7 +198,7 @@ export function useSlotSelection(
     const handleDragStart = useCallback((row: number, col: number, event: React.MouseEvent) => {
         // Only start drag on left mouse button
         if (event.button !== 0) return
-        event.preventDefault()
+        // Do not preventDefault to allow click events to fire naturally
         setIsDragging(true)
         setDragStartPos({ row, col })
         setDragEndPos({ row, col })
@@ -219,15 +219,8 @@ export function useSlotSelection(
             return
         }
 
-        // Check if it is a click (start == end) - delegate to handleSlotClick
+        // Check if it is a click (start == end) - defer to onClick handler
         if (dragStartPos.row === dragEndPos.row && dragStartPos.col === dragEndPos.col) {
-            const pos = dragStartPos.row * columns + dragStartPos.col + 1
-            const slot = slotMap.get(pos)
-
-            if (slot && event) {
-                handleSlotClick(slot, event)
-            }
-
             setIsDragging(false)
             setDragStartPos(null)
             setDragEndPos(null)
