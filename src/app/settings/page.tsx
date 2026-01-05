@@ -124,6 +124,21 @@ export default function SettingsPage() {
     const [deleteBoxDialogOpen, setDeleteBoxDialogOpen] = useState(false)
     const [deletingBoxId, setDeletingBoxId] = useState<string | null>(null)
 
+    // User management state
+    interface UserInfo {
+        id: string
+        employeeId: string | null
+        name: string | null
+        email: string
+        role: string
+        isBlocked: boolean
+        createdAt: string
+    }
+    const [users, setUsers] = useState<UserInfo[]>([])
+    const [usersLoading, setUsersLoading] = useState(false)
+    const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false)
+    const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+
     const fetchFacilities = useCallback(async () => {
         try {
             setLoading(true)
@@ -159,6 +174,64 @@ export default function SettingsPage() {
         setFacilityDialogOpen(false)
         fetchFacilities()
     }
+
+    // User management functions
+    const fetchUsers = async () => {
+        setUsersLoading(true)
+        try {
+            const res = await fetch('/api/users')
+            if (res.ok) {
+                const data = await res.json()
+                setUsers(data)
+            }
+        } catch (error) {
+            console.error('Failed to fetch users:', error)
+        } finally {
+            setUsersLoading(false)
+        }
+    }
+
+    const handleToggleBlock = async (userId: string, isBlocked: boolean) => {
+        try {
+            const res = await fetch('/api/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: userId, isBlocked }),
+            })
+            if (res.ok) {
+                toast({ title: isBlocked ? '已封禁' : '已解封', description: '用户状态已更新' })
+                fetchUsers()
+            } else {
+                const data = await res.json()
+                toast({ title: '操作失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '操作失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    const handleDeleteUser = async () => {
+        if (!deletingUserId) return
+        try {
+            const res = await fetch(`/api/users?id=${deletingUserId}`, { method: 'DELETE' })
+            if (res.ok) {
+                toast({ title: '删除成功', description: '用户已删除' })
+                setDeleteUserDialogOpen(false)
+                fetchUsers()
+            } else {
+                const data = await res.json()
+                toast({ title: '删除失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '删除失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Load users when switching to users tab
+    useEffect(() => {
+        fetchUsers()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Edit handlers
     const openEditDialog = (facility: Facility) => {
@@ -572,40 +645,69 @@ export default function SettingsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <CardTitle>用户管理</CardTitle>
-                                        <CardDescription>管理系统用户和权限</CardDescription>
+                                        <CardDescription>管理已注册的系统用户</CardDescription>
                                     </div>
-                                    <Button>
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        新增用户
+                                    <Button variant="outline" onClick={fetchUsers}>
+                                        刷新列表
                                     </Button>
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-4">
-                                    {[
-                                        { name: 'Admin', email: 'admin@cbms.local', role: 'ADMIN' },
-                                        { name: 'Lab Tech', email: 'tech@cbms.local', role: 'TECHNICIAN' },
-                                    ].map((user, index) => (
-                                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center font-medium">
-                                                    {user.name[0]}
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium">{user.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
-                                                    {user.role === 'ADMIN' ? '管理员' : '技术员'}
-                                                </Badge>
-                                                <Button variant="ghost" size="icon">
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                <div className="space-y-3">
+                                    {usersLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                            <span className="ml-2 text-muted-foreground">加载中...</span>
                                         </div>
-                                    ))}
+                                    ) : users.length === 0 ? (
+                                        <div className="text-center py-8 text-muted-foreground">
+                                            暂无用户
+                                        </div>
+                                    ) : (
+                                        users.map((user) => (
+                                            <div key={user.id} className={`flex items-center justify-between p-4 border rounded-lg ${user.isBlocked ? 'bg-muted/50 opacity-60' : ''}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center font-medium ${user.isBlocked ? 'bg-destructive/20' : 'bg-primary/20'}`}>
+                                                        {user.name?.[0] || user.employeeId?.[0] || '?'}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium">{user.name || '未设置'}</p>
+                                                        <p className="text-sm text-muted-foreground">工号: {user.employeeId || '-'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
+                                                        {user.role === 'ADMIN' ? '管理员' : '员工'}
+                                                    </Badge>
+                                                    {user.isBlocked && (
+                                                        <Badge variant="destructive">已封禁</Badge>
+                                                    )}
+                                                    {user.role !== 'ADMIN' && (
+                                                        <>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleToggleBlock(user.id, !user.isBlocked)}
+                                                            >
+                                                                {user.isBlocked ? '解封' : '封禁'}
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="text-destructive"
+                                                                onClick={() => {
+                                                                    setDeletingUserId(user.id)
+                                                                    setDeleteUserDialogOpen(true)
+                                                                }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -806,6 +908,24 @@ export default function SettingsPage() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>取消</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDeleteBox} className="bg-destructive text-destructive-foreground">
+                            删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete User Dialog */}
+            <AlertDialog open={deleteUserDialogOpen} onOpenChange={setDeleteUserDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除用户</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除这个用户吗？此操作不可撤销。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground">
                             删除
                         </AlertDialogAction>
                     </AlertDialogFooter>

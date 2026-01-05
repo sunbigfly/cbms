@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle, Beaker, Calendar, User, FlaskConical, Hash } from 'lucide-react'
+import { AlertTriangle, Beaker, Calendar, User, FlaskConical, Hash, Droplet, FlaskRound, TestTube2 } from 'lucide-react'
 
 export interface SampleDetail {
     id: string
@@ -91,7 +91,7 @@ export function SlotDetailPanel({
 
                 <Separator />
 
-                {/* Key Details */}
+                {/* 所有字段统一网格排列 */}
                 <div className="grid grid-cols-2 gap-3 text-sm">
                     {sample.batchNo && (
                         <div className="flex items-center gap-2">
@@ -111,6 +111,42 @@ export function SlotDetailPanel({
                             </div>
                         </div>
                     )}
+                    {viabilityPercent !== null && (
+                        <div className="flex items-center gap-2">
+                            <FlaskConical className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">活性</p>
+                                <p className="font-medium">{viabilityPercent}%</p>
+                            </div>
+                        </div>
+                    )}
+                    {sample.quantity !== undefined && sample.unit && (
+                        <div className="flex items-center gap-2">
+                            <Droplet className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">体积</p>
+                                <p className="font-medium">{sample.quantity} {sample.unit}</p>
+                            </div>
+                        </div>
+                    )}
+                    {sample.concentration && (
+                        <div className="flex items-center gap-2">
+                            <FlaskRound className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">浓度</p>
+                                <p className="font-medium">{sample.concentration}</p>
+                            </div>
+                        </div>
+                    )}
+                    {sample.media && (
+                        <div className="flex items-center gap-2">
+                            <TestTube2 className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">冻存液</p>
+                                <p className="font-medium truncate max-w-[100px]">{sample.media}</p>
+                            </div>
+                        </div>
+                    )}
                     {sample.owner && (
                         <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
@@ -118,37 +154,6 @@ export function SlotDetailPanel({
                                 <p className="text-xs text-muted-foreground">负责人</p>
                                 <p className="font-medium">{sample.owner}</p>
                             </div>
-                        </div>
-                    )}
-                    {viabilityPercent !== null && (
-                        <div className="flex items-center gap-2">
-                            <FlaskConical className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">活力</p>
-                                <p className="font-medium">{viabilityPercent}%</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Additional Info */}
-                <div className="space-y-2 text-sm">
-                    {sample.quantity !== undefined && sample.unit && (
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">体积</span>
-                            <span>{sample.quantity} {sample.unit}</span>
-                        </div>
-                    )}
-                    {sample.concentration && (
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">浓度</span>
-                            <span>{sample.concentration}</span>
-                        </div>
-                    )}
-                    {sample.media && (
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">培养基</span>
-                            <span className="truncate max-w-[120px]">{sample.media}</span>
                         </div>
                     )}
                 </div>

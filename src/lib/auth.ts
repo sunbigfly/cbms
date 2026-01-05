@@ -28,6 +28,10 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password) {
           return null
         }
+        // 检查用户是否被封禁
+        if (user.isBlocked) {
+          throw new Error('账户已被封禁，请联系管理员')
+        }
         const isValid = await compare(credentials.password, user.password)
         if (!isValid) {
           return null

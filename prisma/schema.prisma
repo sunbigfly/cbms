@@ -23,6 +23,7 @@ model User {
   password      String?   // For credentials provider
   image         String?
   role          String    @default("TECHNICIAN") // ADMIN, TECHNICIAN
+  isBlocked     Boolean   @default(false) // 是否被封禁
   
   accounts      Account[]
   sessions      Session[]

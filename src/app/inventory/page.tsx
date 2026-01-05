@@ -107,7 +107,7 @@ interface BoxDetail {
 
 // Utility: Get color based on occupancy
 function getOccupancyColor(occupancy: number): string {
-    if (occupancy === 0) return 'bg-muted'
+    if (occupancy === 0) return 'bg-gray-300'
     if (occupancy < 50) return 'bg-green-500'
     if (occupancy < 80) return 'bg-yellow-500'
     return 'bg-red-500'
