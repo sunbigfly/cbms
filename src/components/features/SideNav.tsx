@@ -85,13 +85,16 @@ export function SideNav() {
             >
                 {/* Logo */}
                 <div className={cn(
-                    'flex items-center h-14 border-b px-3',
-                    collapsed ? 'justify-center' : 'gap-2'
+                    'flex items-center h-14 border-b px-3 overflow-hidden',
+                    collapsed ? 'justify-center' : ''
                 )}>
                     <FlaskConical className="h-6 w-6 text-primary flex-shrink-0" />
-                    {!collapsed && (
-                        <span className="font-semibold text-lg">CBMS</span>
-                    )}
+                    <span className={cn(
+                        "font-semibold text-lg whitespace-nowrap transition-all duration-300",
+                        collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
+                    )}>
+                        CBMS
+                    </span>
                 </div>
 
                 {/* Navigation */}
@@ -105,7 +108,7 @@ export function SideNav() {
                             <Link
                                 href={item.href}
                                 className={cn(
-                                    'flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors overflow-hidden',
+                                    'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors overflow-hidden',
                                     'hover:bg-accent hover:text-accent-foreground',
                                     isActive
                                         ? 'bg-primary text-primary-foreground'
@@ -116,7 +119,7 @@ export function SideNav() {
                                 <Icon className="h-5 w-5 flex-shrink-0" />
                                 <span className={cn(
                                     'whitespace-nowrap transition-all duration-300',
-                                    collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
+                                    collapsed ? 'w-0 opacity-0 ml-0' : 'w-auto opacity-100 ml-3'
                                 )}>
                                     {item.label}
                                 </span>
@@ -145,20 +148,21 @@ export function SideNav() {
                     {/* User Info */}
                     {status === 'authenticated' && (
                         <div className={cn(
-                            'flex items-center gap-2 p-2 rounded-lg',
+                            'flex items-center p-2 rounded-lg overflow-hidden',
                             collapsed ? 'justify-center' : ''
                         )}>
                             <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium flex-shrink-0">
                                 {userInitial}
                             </div>
-                            {!collapsed && (
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{userName}</p>
-                                    {isAdmin && (
-                                        <p className="text-xs text-primary">管理员</p>
-                                    )}
-                                </div>
-                            )}
+                            <div className={cn(
+                                "flex-1 min-w-0 transition-all duration-300",
+                                collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
+                            )}>
+                                <p className="text-sm font-medium truncate">{userName}</p>
+                                {isAdmin && (
+                                    <p className="text-xs text-primary">管理员</p>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -204,17 +208,16 @@ export function SideNav() {
                     <Button
                         variant="ghost"
                         size="sm"
-                        className={cn('w-full', collapsed ? 'justify-center' : 'justify-start')}
+                        className={cn('w-full overflow-hidden', collapsed ? 'justify-center' : 'justify-start')}
                         onClick={() => setCollapsed(!collapsed)}
                     >
-                        {collapsed ? (
-                            <ChevronRight className="h-4 w-4" />
-                        ) : (
-                            <>
-                                <ChevronLeft className="h-4 w-4 mr-2" />
-                                收起
-                            </>
-                        )}
+                        <ChevronLeft className={cn("h-4 w-4 transition-transform duration-300 flex-shrink-0", collapsed && "rotate-180")} />
+                        <span className={cn(
+                            "whitespace-nowrap transition-all duration-300",
+                            collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
+                        )}>
+                            收起
+                        </span>
                     </Button>
                 </div>
             </aside>
