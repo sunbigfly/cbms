@@ -199,7 +199,7 @@ export function CreateFacilityWizard({ onSuccess, forcePrivate = false, embedded
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
 
                     {/* Step 1: Basic Info */}
                     {step === 1 && (
@@ -456,7 +456,7 @@ export function CreateFacilityWizard({ onSuccess, forcePrivate = false, embedded
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         ) : (
-                            <Button type="submit" disabled={isSubmitting}>
+                            <Button type="button" onClick={form.handleSubmit(onSubmit)} disabled={isSubmitting}>
                                 <Check className="mr-2 h-4 w-4" />
                                 {isSubmitting ? '创建中...' : '确认创建'}
                             </Button>

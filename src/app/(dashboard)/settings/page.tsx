@@ -294,22 +294,9 @@ export default function SettingsPage() {
     }
 
     // Delete handlers
-    const openDeleteDialog = async (facility: Facility) => {
+    const openDeleteDialog = (facility: Facility) => {
         setDeletingFacility(facility)
-        // Check if can delete
-        try {
-            const res = await fetch(`/api/facilities?id=${facility.id}`, { method: 'DELETE' })
-            const data = await res.json()
-            if (!res.ok && data.canDelete === false) {
-                setCanDelete(false)
-                setSampleCount(data.sampleCount || 0)
-            } else {
-                setCanDelete(true)
-                setSampleCount(0)
-            }
-        } catch {
-            setCanDelete(true)
-        }
+        setCanDelete(true) // 默认允许尝试删除，失败会提示
         setDeleteDialogOpen(true)
     }
 
@@ -323,7 +310,12 @@ export default function SettingsPage() {
                 fetchFacilities()
             } else {
                 const data = await res.json()
-                toast({ title: '删除失败', description: data.error, variant: 'destructive' })
+                if (data.canDelete === false) {
+                    setCanDelete(false)
+                    setSampleCount(data.sampleCount || 0)
+                } else {
+                    toast({ title: '删除失败', description: data.error, variant: 'destructive' })
+                }
             }
         } catch (error) {
             toast({ title: '删除失败', description: '网络错误', variant: 'destructive' })
