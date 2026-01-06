@@ -162,7 +162,28 @@ pnpm db:seed
 pnpm dev
 ```
 
-访问 http://localhost:3000 打开应用
+### 1. 克隆项目
+
+```bash
+git clone <repository-url>
+cd cbms
+```
+
+### 2. 一键配置部署 (推荐)
+
+我们提供了一个交互式脚本来帮您自动配置环境、初始化数据库和构建项目：
+
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+按照提示输入数据库密码等信息即可完成部署。
+
+或者，您也可以手动执行后续步骤：
+
+### 3. 手动安装依赖
+
 
 ---
 
