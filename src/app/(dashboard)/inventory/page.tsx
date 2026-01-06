@@ -22,12 +22,19 @@ import {
     LogOut,
     Pencil,
 } from 'lucide-react'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSlotSelection, SlotInfo, SelectionType } from '@/hooks/useSlotSelection'
 
 // Cookie 常量
 const LIBRARY_MODE_COOKIE = 'library_mode'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
+
+// SessionStorage keys for persisting selection state
+const STORAGE_KEY_FACILITY = 'inventory_selected_facility_id'
+const STORAGE_KEY_RACK = 'inventory_selected_rack_id'
+const STORAGE_KEY_BOX = 'inventory_selected_box_id'
+const STORAGE_KEY_LEVEL = 'inventory_current_level'
+const STORAGE_KEY_LIBRARY_MODE = 'inventory_library_mode'
 
 // 从 cookie 读取 libraryMode 初始值
 function getInitialLibraryMode(): LibraryMode {
@@ -35,6 +42,14 @@ function getInitialLibraryMode(): LibraryMode {
     const match = document.cookie.match(new RegExp(`(^| )${LIBRARY_MODE_COOKIE}=([^;]+)`))
     const value = match ? match[2] : null
     return value === 'private' ? 'private' : 'public'
+}
+
+// 从 sessionStorage 读取初始导航级别
+function getInitialLevel(): NavigationLevel {
+    if (typeof sessionStorage === 'undefined') return 'facility'
+    const saved = sessionStorage.getItem(STORAGE_KEY_LEVEL)
+    if (saved === 'rack' || saved === 'box' || saved === 'facility') return saved
+    return 'facility'
 }
 
 // Types
@@ -362,7 +377,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
             )}
 
             {/* Action Bar */}
-            <div className="mb-4 pb-3 border-b space-y-2">
+            <div className="mb-3 pb-2 border-b">
                 <div className="flex items-center gap-2 flex-wrap">
                     <Button
                         size="sm"
@@ -398,15 +413,6 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                         </Button>
                     )}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选
-                    </span>
-                    <span className="flex items-center gap-1">
-                        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选
-                    </span>
-                    <span className="text-blue-600">拖拽框选</span>
-                </div>
             </div>
 
             {/* Grid container - centered */}
@@ -416,9 +422,9 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                 onMouseLeave={handleDragEnd}
             >
                 {/* Column headers */}
-                <div className="inline-flex gap-1.5 mb-1 ml-8">
+                <div className="inline-flex gap-1 mb-1 ml-6">
                     {Array.from({ length: columns }, (_, i) => (
-                        <div key={i} className="w-10 h-6 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                        <div key={i} className="w-9 h-5 flex items-center justify-center text-xs text-muted-foreground font-medium">
                             {i + 1}
                         </div>
                     ))}
@@ -427,8 +433,8 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                 {/* Grid with row labels */}
                 <TooltipProvider>
                     {Array.from({ length: rows }, (_, rowIndex) => (
-                        <div key={rowIndex} className="inline-flex gap-1.5 mb-1.5">
-                            <div className="w-6 h-10 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                        <div key={rowIndex} className="inline-flex gap-1 mb-1">
+                            <div className="w-5 h-9 flex items-center justify-center text-xs text-muted-foreground font-medium">
                                 {rowLabels[rowIndex]}
                             </div>
                             {Array.from({ length: columns }, (_, colIndex) => {
@@ -452,14 +458,14 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                                 }}
                                                 onMouseDown={(e) => handleDragStart(rowIndex, colIndex, e)}
                                                 onMouseEnter={() => handleDragMove(rowIndex, colIndex)}
-                                                className={`w-10 h-10 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center p-0.5 break-all text-center font-medium overflow-hidden ${(() => {
+                                                className={`w-9 h-9 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center p-0.5 break-all text-center font-medium overflow-hidden ${(() => {
                                                     const name = slot?.sample?.name || ''
                                                     const len = name.length
-                                                    if (len <= 2) return 'text-sm'
-                                                    if (len <= 3) return 'text-xs'
-                                                    if (len <= 5) return 'text-[10px] leading-3'
-                                                    if (len <= 8) return 'text-[9px] leading-none'
-                                                    return 'text-[8px] leading-none tracking-tight'
+                                                    if (len <= 2) return 'text-xs'
+                                                    if (len <= 3) return 'text-[10px]'
+                                                    if (len <= 5) return 'text-[9px] leading-3'
+                                                    if (len <= 8) return 'text-[8px] leading-none'
+                                                    return 'text-[7px] leading-none tracking-tight'
                                                 })()
                                                     } ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag)}`}
                                             >
@@ -484,32 +490,37 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                     ))}
                 </TooltipProvider>
 
-                {/* Legend */}
-                <div className="inline-flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground justify-center">
+                {/* Legend and Shortcuts */}
+                <div className="inline-flex flex-wrap gap-3 mt-3 text-xs text-muted-foreground justify-center items-center">
                     <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-sm bg-primary" />
+                        <div className="w-3 h-3 rounded-sm bg-primary" />
                         <span>已占用</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-sm bg-muted border" />
+                        <div className="w-3 h-3 rounded-sm bg-muted border" />
                         <span>空闲</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-sm bg-green-100 border-2 border-green-500" />
+                        <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-500" />
                         <span>空闲选中</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-sm bg-yellow-100 border-2 border-yellow-500" />
+                        <div className="w-3 h-3 rounded-sm bg-yellow-100 border border-yellow-500" />
                         <span>已占用选中</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-sm bg-red-50 border-2 border-red-500" />
+                        <div className="w-3 h-3 rounded-sm bg-red-50 border border-red-500" />
                         <span>同批次</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-sm bg-blue-50 border-2 border-blue-500" />
+                        <div className="w-3 h-3 rounded-sm bg-blue-50 border border-blue-500" />
                         <span>拖拽选中</span>
                     </div>
+                    <span className="border-l pl-3 ml-1">|
+                        <kbd className="ml-2 px-1 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选
+                        <kbd className="ml-2 px-1 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选
+                        <span className="ml-2 text-blue-600">拖拽框选</span>
+                    </span>
                 </div>
             </div>
         </div>
@@ -520,8 +531,16 @@ type NavigationLevel = 'facility' | 'rack' | 'box'
 
 export default function InventoryPage() {
     const [loading, setLoading] = useState(true)
-    const [currentLevel, setCurrentLevel] = useState<NavigationLevel>('facility')
+    const [currentLevel, setCurrentLevelState] = useState<NavigationLevel>('facility')
     const [libraryMode, setLibraryModeState] = useState<LibraryMode>(getInitialLibraryMode)
+
+    // 包装 setCurrentLevel 以同时更新 sessionStorage
+    const setCurrentLevel = useCallback((level: NavigationLevel) => {
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(STORAGE_KEY_LEVEL, level)
+        }
+        setCurrentLevelState(level)
+    }, [])
 
     // 包装 setLibraryMode 以同时更新 cookie
     const setLibraryMode = useCallback((value: LibraryMode) => {
@@ -605,31 +624,156 @@ export default function InventoryPage() {
         }
     }, [])
 
+    // 使用 ref 追踪之前的 libraryMode，检测是否是切换
+    const prevLibraryModeRef = useRef<LibraryMode | null>(null)
+    // 使用 ref 追踪是否已完成初始化，防止首次加载时清除 sessionStorage
+    const hasInitializedRef = useRef(false)
+
     // Fetch facilities on mount or when library mode changes
     useEffect(() => {
-        async function fetchFacilities() {
+        async function fetchAndRestore() {
             setLoading(true)
+
+            // 检查 libraryMode 是否真的改变了（不是首次加载）
+            const savedLibraryMode = typeof sessionStorage !== 'undefined'
+                ? sessionStorage.getItem(STORAGE_KEY_LIBRARY_MODE)
+                : null
+            const libraryModeChanged = savedLibraryMode !== null && savedLibraryMode !== libraryMode
+
+            // 保存当前 libraryMode
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem(STORAGE_KEY_LIBRARY_MODE, libraryMode)
+            }
+
+            // 如果 libraryMode 改变了，清除之前的选择缓存
+            if (libraryModeChanged) {
+                if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.removeItem(STORAGE_KEY_FACILITY)
+                    sessionStorage.removeItem(STORAGE_KEY_RACK)
+                    sessionStorage.removeItem(STORAGE_KEY_BOX)
+                    sessionStorage.removeItem(STORAGE_KEY_LEVEL)
+                }
+                setSelectedFacility(null)
+                setSelectedRack(null)
+                setSelectedBox(null)
+                setBoxDetail(null)
+                setCurrentLevelState('facility')
+            }
+
             try {
                 const privateParam = libraryMode === 'private' ? '?private=true' : ''
                 const res = await fetch(`/api/inventory${privateParam}`)
                 if (res.ok) {
                     const data = await res.json()
-                    setFacilities(data.facilities || [])
+                    const fetchedFacilities: Facility[] = data.facilities || []
+                    setFacilities(fetchedFacilities)
+
+                    // 只有在 libraryMode 没有改变时才恢复之前的选择状态
+                    if (!libraryModeChanged && typeof sessionStorage !== 'undefined') {
+                        const savedFacilityId = sessionStorage.getItem(STORAGE_KEY_FACILITY)
+                        const savedRackId = sessionStorage.getItem(STORAGE_KEY_RACK)
+                        const savedBoxId = sessionStorage.getItem(STORAGE_KEY_BOX)
+                        const savedLevel = sessionStorage.getItem(STORAGE_KEY_LEVEL) as NavigationLevel
+
+                        if (savedFacilityId) {
+                            const facility = fetchedFacilities.find(f => f.id === savedFacilityId)
+                            if (facility) {
+                                setSelectedFacility(facility)
+                                // 加载 racks
+                                const racksRes = await fetch(`/api/inventory?facilityId=${savedFacilityId}`)
+                                if (racksRes.ok) {
+                                    const racksData = await racksRes.json()
+                                    const fetchedRacks: Rack[] = racksData.racks || []
+                                    setRacks(fetchedRacks)
+
+                                    if (savedRackId) {
+                                        const rack = fetchedRacks.find(r => r.id === savedRackId)
+                                        if (rack) {
+                                            setSelectedRack(rack)
+                                            // 加载 boxes
+                                            const boxesRes = await fetch(`/api/inventory?rackId=${savedRackId}`)
+                                            if (boxesRes.ok) {
+                                                const boxesData = await boxesRes.json()
+                                                const rackData = boxesData.rack
+                                                if (rackData?.shelves) {
+                                                    const shelfBoxes: BoxInfo[] = rackData.shelves.flatMap((shelf: { boxes: Array<{ id: string; name: string; rows: number; columns: number; slots?: Array<{ status: string }> }> }) =>
+                                                        shelf.boxes.map((box) => ({
+                                                            id: box.id,
+                                                            name: box.name,
+                                                            rows: box.rows,
+                                                            columns: box.columns,
+                                                            occupied: box.slots?.filter((slot: { status: string }) => slot.status === 'OCCUPIED').length || 0,
+                                                            total: box.rows * box.columns,
+                                                        }))
+                                                    )
+                                                    setBoxes(shelfBoxes)
+
+                                                    if (savedBoxId) {
+                                                        const box = shelfBoxes.find(b => b.id === savedBoxId)
+                                                        if (box) {
+                                                            setSelectedBox(box)
+                                                            // 加载 box detail
+                                                            const boxDetailRes = await fetch(`/api/inventory?boxId=${savedBoxId}`)
+                                                            if (boxDetailRes.ok) {
+                                                                const boxDetailData = await boxDetailRes.json()
+                                                                setBoxDetail(boxDetailData.box)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                // 恢复导航级别
+                                if (savedLevel) {
+                                    setCurrentLevelState(savedLevel)
+                                }
+                            }
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch facilities:', error)
             } finally {
                 setLoading(false)
+                // 标记初始化完成，允许后续的持久化操作
+                hasInitializedRef.current = true
             }
         }
-        // Reset selections when switching modes
-        setSelectedFacility(null)
-        setSelectedRack(null)
-        setSelectedBox(null)
-        setBoxDetail(null)
-        setCurrentLevel('facility')
-        fetchFacilities()
+
+        fetchAndRestore()
+        prevLibraryModeRef.current = libraryMode
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [libraryMode])
+
+
+
+    // 持久化选择状态到 sessionStorage（仅在初始化完成后）
+    useEffect(() => {
+        // 跳过首次加载，等待恢复完成
+        if (!hasInitializedRef.current) {
+            return
+        }
+
+        if (typeof sessionStorage !== 'undefined') {
+            if (selectedFacility) {
+                sessionStorage.setItem(STORAGE_KEY_FACILITY, selectedFacility.id)
+            } else {
+                sessionStorage.removeItem(STORAGE_KEY_FACILITY)
+            }
+            if (selectedRack) {
+                sessionStorage.setItem(STORAGE_KEY_RACK, selectedRack.id)
+            } else {
+                sessionStorage.removeItem(STORAGE_KEY_RACK)
+            }
+            if (selectedBox) {
+                sessionStorage.setItem(STORAGE_KEY_BOX, selectedBox.id)
+            } else {
+                sessionStorage.removeItem(STORAGE_KEY_BOX)
+            }
+        }
+    }, [selectedFacility, selectedRack, selectedBox])
 
     // Fetch racks
     const fetchRacks = useCallback(async (facilityId: string) => {

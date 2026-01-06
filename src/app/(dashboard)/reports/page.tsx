@@ -267,7 +267,7 @@ export default function ReportsPage() {
                                 trigger={
                                     <Button variant="outline">
                                         <Upload className="mr-2 h-4 w-4" />
-                                        导入 CSV
+                                        导入数据
                                     </Button>
                                 }
                                 onSuccess={handleImportSuccess}
@@ -282,19 +282,7 @@ export default function ReportsPage() {
                                 ) : (
                                     <Download className="mr-2 h-4 w-4" />
                                 )}
-                                导出当前视图
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={handleExport}
-                                disabled={isExporting}
-                            >
-                                {isExporting ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Download className="mr-2 h-4 w-4" />
-                                )}
-                                导出全部数据
+                                导出数据
                             </Button>
                             <Button
                                 variant="outline"

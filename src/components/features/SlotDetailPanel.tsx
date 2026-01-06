@@ -47,7 +47,7 @@ export function SlotDetailPanel({
                 <CardContent>
                     <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
                         <Beaker className="h-12 w-12 mb-3 opacity-20" />
-                        <p className="text-sm">选择单个已占用槽位</p>
+                        <p className="text-sm">选择单个已占用孔位</p>
                         <p className="text-xs mt-1">查看样本详细信息</p>
                     </div>
                 </CardContent>
@@ -93,95 +93,94 @@ export function SlotDetailPanel({
 
                 <Separator />
 
-                {/* 所有字段统一网格排列 */}
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                {/* 所有字段列表式排列 */}
+                <div className="space-y-2 text-sm">
                     {sample.batchNo && (
-                        <div className="flex items-center gap-2">
-                            <Hash className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">批次号</p>
-                                <p className="font-medium">{sample.batchNo}</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Hash className="h-4 w-4" />
+                                <span>批次号</span>
                             </div>
+                            <span className="font-medium">{sample.batchNo}</span>
                         </div>
                     )}
                     {sample.passage && (
-                        <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">代次</p>
-                                <p className="font-medium">{sample.passage}</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-4 w-4" />
+                                <span>代次</span>
                             </div>
+                            <span className="font-medium">{sample.passage}</span>
                         </div>
                     )}
                     {viabilityPercent !== null && (
-                        <div className="flex items-center gap-2">
-                            <FlaskConical className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">活性</p>
-                                <p className="font-medium">{viabilityPercent}%</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <FlaskConical className="h-4 w-4" />
+                                <span>活性</span>
                             </div>
+                            <span className="font-medium">{viabilityPercent}%</span>
                         </div>
                     )}
                     {sample.quantity !== undefined && sample.unit && (
-                        <div className="flex items-center gap-2">
-                            <Droplet className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">体积</p>
-                                <p className="font-medium">{sample.quantity} {sample.unit}</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Droplet className="h-4 w-4" />
+                                <span>体积</span>
                             </div>
+                            <span className="font-medium">{sample.quantity} {sample.unit}</span>
                         </div>
                     )}
                     {sample.concentration && (
-                        <div className="flex items-center gap-2">
-                            <FlaskRound className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">浓度</p>
-                                <p className="font-medium">{sample.concentration}</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <FlaskRound className="h-4 w-4" />
+                                <span>浓度</span>
                             </div>
+                            <span className="font-medium">{sample.concentration}</span>
                         </div>
                     )}
                     {sample.media && (
-                        <div className="flex items-center gap-2">
-                            <TestTube2 className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">冻存液</p>
-                                <p className="font-medium truncate max-w-[100px]">{sample.media}</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <TestTube2 className="h-4 w-4" />
+                                <span>冻存液</span>
                             </div>
+                            <span className="font-medium text-right max-w-[120px]">{sample.media}</span>
                         </div>
                     )}
                     {sample.sterileCheck && (
-                        <div className="flex items-center gap-2">
-                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">无菌验证</p>
-                                <p className="font-medium">{sample.sterileCheck}</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <ShieldCheck className="h-4 w-4" />
+                                <span>无菌验证</span>
                             </div>
+                            <span className="font-medium">{sample.sterileCheck}</span>
                         </div>
                     )}
                     {sample.owner && (
-                        <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">负责人</p>
-                                <p className="font-medium">{sample.owner}</p>
+                        <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <User className="h-4 w-4" />
+                                <span>负责人</span>
                             </div>
+                            <span className="font-medium">{sample.owner}</span>
                         </div>
                     )}
                     {sample.updatedAt && (
-                        <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                                <p className="text-xs text-muted-foreground">最后更新</p>
-                                <p className="font-medium">
-                                    {new Date(sample.updatedAt).toLocaleDateString('zh-CN', {
-                                        year: 'numeric',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    })}
-                                </p>
+                        <div className="flex items-center justify-between py-1.5">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>更新时间</span>
                             </div>
+                            <span className="font-medium">
+                                {new Date(sample.updatedAt).toLocaleDateString('zh-CN', {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </span>
                         </div>
                     )}
                 </div>

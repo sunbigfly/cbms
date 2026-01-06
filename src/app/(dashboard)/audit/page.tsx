@@ -1,20 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { ColumnDef } from '@tanstack/react-table'
 import { Breadcrumbs } from '@/components/features/Breadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
-import { Search, Loader2 } from 'lucide-react'
-
+import { DataTable } from '@/components/ui/data-table'
+import { Loader2 } from 'lucide-react'
 
 interface AuditLog {
     id: string
@@ -61,23 +53,68 @@ function formatTimestamp(timestamp: string): string {
     })
 }
 
+// 定义表格列
+const columns: ColumnDef<AuditLog>[] = [
+    {
+        accessorKey: 'action',
+        header: '操作',
+        cell: ({ row }) => <ActionBadge action={row.getValue('action')} />,
+        filterFn: (row, id, value) => {
+            if (!value) return true
+            return row.getValue(id) === value
+        },
+    },
+    {
+        accessorKey: 'sample',
+        header: '样本名称',
+        cell: ({ row }) => (
+            <span className="font-medium">{row.getValue('sample')}</span>
+        ),
+    },
+    {
+        accessorKey: 'user',
+        header: '操作人',
+    },
+    {
+        accessorKey: 'timestamp',
+        header: '时间',
+        cell: ({ row }) => (
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {formatTimestamp(row.getValue('timestamp'))}
+            </span>
+        ),
+    },
+    {
+        accessorKey: 'description',
+        header: '描述',
+        cell: ({ row }) => (
+            <span className="text-sm text-muted-foreground line-clamp-2">
+                {row.getValue('description')}
+            </span>
+        ),
+    },
+]
+
+// 操作类型过滤选项
+const actionFilterOptions = [
+    { label: '入库', value: 'CREATE' },
+    { label: '出库', value: 'CONSUME' },
+    { label: '更新', value: 'UPDATE' },
+    { label: '移动', value: 'MOVE' },
+    { label: '销毁', value: 'DESTROY' },
+]
+
 export default function AuditPage() {
     const [loading, setLoading] = useState(true)
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
-    const [total, setTotal] = useState(0)
-    const [searchQuery, setSearchQuery] = useState('')
 
     useEffect(() => {
         async function fetchAuditLogs() {
             try {
-                const params = new URLSearchParams()
-                if (searchQuery) params.set('search', searchQuery)
-
-                const res = await fetch(`/api/audit?${params.toString()}`)
+                const res = await fetch('/api/audit')
                 if (res.ok) {
                     const data = await res.json()
                     setAuditLogs(data.logs || [])
-                    setTotal(data.total || 0)
                 }
             } catch (error) {
                 console.error('Failed to fetch audit logs:', error)
@@ -86,11 +123,7 @@ export default function AuditPage() {
             }
         }
         fetchAuditLogs()
-    }, [searchQuery])
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault()
-    }
+    }, [])
 
     if (loading) {
         return (
@@ -117,67 +150,27 @@ export default function AuditPage() {
                         查看所有样本操作的审计日志
                     </p>
                 </div>
-
             </div>
 
-            {/* Search and Filters */}
-            <Card className="mb-6">
-                <CardContent className="pt-4">
-                    <form onSubmit={handleSearch} className="flex gap-4">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="搜索样本名称、用户或描述..."
-                                className="pl-9"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
-
-            {/* Audit Log Table */}
+            {/* Data Table */}
             <Card>
                 <CardHeader>
                     <CardTitle>操作日志</CardTitle>
-                    <CardDescription>共 {total} 条记录</CardDescription>
+                    <CardDescription>共 {auditLogs.length} 条记录</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {auditLogs.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            暂无审计日志
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-20">操作</TableHead>
-                                    <TableHead>样本名称</TableHead>
-                                    <TableHead className="hidden sm:table-cell">操作人</TableHead>
-                                    <TableHead>时间</TableHead>
-                                    <TableHead className="hidden lg:table-cell">描述</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {auditLogs.map((log) => (
-                                    <TableRow key={log.id}>
-                                        <TableCell>
-                                            <ActionBadge action={log.action} />
-                                        </TableCell>
-                                        <TableCell className="font-medium">{log.sample}</TableCell>
-                                        <TableCell className="hidden sm:table-cell">{log.user}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">
-                                            {formatTimestamp(log.timestamp)}
-                                        </TableCell>
-                                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                                            {log.description}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
+                    <DataTable
+                        columns={columns}
+                        data={auditLogs}
+                        searchPlaceholder="搜索样本名称、用户或描述..."
+                        filterOptions={[
+                            {
+                                column: 'action',
+                                label: '操作',
+                                options: actionFilterOptions,
+                            },
+                        ]}
+                    />
                 </CardContent>
             </Card>
         </div>
