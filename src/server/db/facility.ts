@@ -3,6 +3,7 @@
 
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
+import { invalidateInventoryCache, invalidateStatsCache } from '@/lib/cache'
 
 // ============================================
 // Facility CRUD
@@ -184,7 +185,7 @@ export async function createFacility(data: {
         return slots
     }
 
-    return prisma.storageFacility.create({
+    const facility = await prisma.storageFacility.create({
         data: {
             name,
             type,
@@ -220,6 +221,12 @@ export async function createFacility(data: {
             },
         },
     })
+
+    // 失效相关缓存
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+
+    return facility
 }
 
 // ============================================
@@ -331,6 +338,9 @@ export async function updateFacility(id: string, data: {
     return prisma.storageFacility.update({
         where: { id },
         data,
+    }).then(async (result) => {
+        await invalidateInventoryCache()
+        return result
     })
 }
 
@@ -358,7 +368,13 @@ export async function deleteFacility(id: string) {
     if (!check.canDelete) {
         throw new Error(check.reason)
     }
-    return prisma.storageFacility.delete({ where: { id } })
+    const result = await prisma.storageFacility.delete({ where: { id } })
+
+    // 失效相关缓存
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+
+    return result
 }
 
 // ============================================
@@ -426,6 +442,10 @@ export async function addRackToFacility(facilityId: string, data: {
         data: { totalRacks: { increment: 1 } },
     })
 
+    // 失效相关缓存
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+
     return rack
 }
 
@@ -462,6 +482,10 @@ export async function deleteRack(rackId: string) {
         where: { id: rack.facilityId },
         data: { totalRacks: { decrement: 1 } },
     })
+
+    // 失效相关缓存
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
 
     return { success: true }
 }
@@ -504,7 +528,7 @@ export async function addBoxToShelf(shelfId: string, data: {
         return slots
     }
 
-    return prisma.box.create({
+    const result = await prisma.box.create({
         data: {
             name: boxName,
             rows,
@@ -516,6 +540,12 @@ export async function addBoxToShelf(shelfId: string, data: {
             },
         },
     })
+
+    // 失效相关缓存
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+
+    return result
 }
 
 export async function canDeleteBox(boxId: string): Promise<{ canDelete: boolean; reason?: string; sampleCount: number }> {
@@ -536,5 +566,11 @@ export async function deleteBox(boxId: string) {
     if (!check.canDelete) {
         throw new Error(check.reason)
     }
-    return prisma.box.delete({ where: { id: boxId } })
+    const result = await prisma.box.delete({ where: { id: boxId } })
+
+    // 失效相关缓存
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+
+    return result
 }

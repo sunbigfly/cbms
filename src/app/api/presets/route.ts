@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { cacheGetOrSet, invalidatePresetsCache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
 
 // GET /api/presets - 获取预设列表
 export async function GET(request: NextRequest) {
@@ -9,11 +10,20 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
 
     try {
-        const where = category ? { category } : {}
-        const presets = await prisma.systemPreset.findMany({
-            where,
-            orderBy: [{ category: 'asc' }, { order: 'asc' }, { value: 'asc' }],
-        })
+        const cacheKey = `${CACHE_KEYS.PRESETS}${category || 'all'}`
+
+        const presets = await cacheGetOrSet(
+            cacheKey,
+            async () => {
+                const where = category ? { category } : {}
+                return prisma.systemPreset.findMany({
+                    where,
+                    orderBy: [{ category: 'asc' }, { order: 'asc' }, { value: 'asc' }],
+                })
+            },
+            CACHE_TTL.PRESETS
+        )
+
         return NextResponse.json(presets)
     } catch (error) {
         console.error('Failed to fetch presets:', error)
@@ -39,6 +49,10 @@ export async function POST(request: NextRequest) {
         const preset = await prisma.systemPreset.create({
             data: { category, value, order },
         })
+
+        // 失效预设缓存
+        await invalidatePresetsCache()
+
         return NextResponse.json(preset)
     } catch (error: unknown) {
         console.error('Failed to create preset:', error)
@@ -72,6 +86,10 @@ export async function PUT(request: NextRequest) {
             where: { id },
             data: updateData,
         })
+
+        // 失效预设缓存
+        await invalidatePresetsCache()
+
         return NextResponse.json(preset)
     } catch (error) {
         console.error('Failed to update preset:', error)
@@ -95,6 +113,10 @@ export async function DELETE(request: NextRequest) {
 
     try {
         await prisma.systemPreset.delete({ where: { id } })
+
+        // 失效预设缓存
+        await invalidatePresetsCache()
+
         return NextResponse.json({ success: true })
     } catch (error) {
         console.error('Failed to delete preset:', error)

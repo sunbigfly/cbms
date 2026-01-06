@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkInSample, searchSamples, batchCheckInSamples, getSamplesByIds } from '@/server/db/sample'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { cacheGetOrSet, getSearchCacheKey, CACHE_TTL } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
     try {
@@ -22,10 +23,22 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(samples)
         }
 
-        // 普通搜索
+        // 普通搜索 - 使用缓存
         const query = searchParams.get('q') || ''
         const limit = parseInt(searchParams.get('limit') || '50')
 
+        // 只缓存有查询关键词的搜索
+        if (query.length > 0) {
+            const cacheKey = getSearchCacheKey(`${query}:${limit}`)
+            const samples = await cacheGetOrSet(
+                cacheKey,
+                () => searchSamples(query, limit),
+                CACHE_TTL.SEARCH
+            )
+            return NextResponse.json(samples)
+        }
+
+        // 无关键词时不缓存
         const samples = await searchSamples(query, limit)
         return NextResponse.json(samples)
     } catch (error) {

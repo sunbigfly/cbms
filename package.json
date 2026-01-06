@@ -39,6 +39,7 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "ioredis": "^5.9.0",
     "lucide-react": "^0.263.1",
     "next": "^15.1.8",
     "next-auth": "^4.24.0",

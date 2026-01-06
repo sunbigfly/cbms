@@ -2,6 +2,7 @@
 // Server-side functions for managing biological samples
 
 import { prisma } from '@/lib/prisma'
+import { invalidateSampleRelatedCache } from '@/lib/cache'
 // Slot status constants (matches Prisma enum)
 const SLOT_STATUS = {
     EMPTY: 'EMPTY',
@@ -160,6 +161,9 @@ export async function checkInSample(
             },
         })
 
+        // 失效相关缓存
+        await invalidateSampleRelatedCache()
+
         return sample
     })
 }
@@ -228,6 +232,9 @@ export async function checkOutSample(
             where: { id: slot.id },
             data: { status: SLOT_STATUS.EMPTY },
         })
+
+        // 失效相关缓存
+        await invalidateSampleRelatedCache()
 
         return { success: true, location: locationString }
     })
@@ -320,6 +327,9 @@ export async function moveSample(
                 newData: { location: targetLocation },
             },
         })
+
+        // 失效相关缓存
+        await invalidateSampleRelatedCache()
 
         return {
             success: true,
@@ -456,6 +466,9 @@ export async function batchCheckInSamples(
             results.push(sample)
         }
 
+        // 失效相关缓存
+        await invalidateSampleRelatedCache()
+
         return results
     })
 }
@@ -531,6 +544,9 @@ export async function batchCheckOutSamples(
             results.push({ id: sampleId, location: locationString })
         }
 
+        // 失效相关缓存
+        await invalidateSampleRelatedCache()
+
         return results
     })
 }
@@ -591,6 +607,9 @@ export async function batchUpdateSamples(
 
             results.push(updated)
         }
+
+        // 失效相关缓存
+        await invalidateSampleRelatedCache()
 
         return results
     })
