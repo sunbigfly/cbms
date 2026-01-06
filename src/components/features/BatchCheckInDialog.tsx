@@ -670,8 +670,7 @@ export function BatchCheckInDialog({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                                    disabled={currentPage === 0}
+                                    onClick={() => setCurrentPage(p => (p - 1 + totalPages) % totalPages)}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
@@ -682,8 +681,7 @@ export function BatchCheckInDialog({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
-                                    disabled={currentPage === totalPages - 1}
+                                    onClick={() => setCurrentPage(p => (p + 1) % totalPages)}
                                 >
                                     <ChevronRightIcon className="h-4 w-4" />
                                 </Button>
