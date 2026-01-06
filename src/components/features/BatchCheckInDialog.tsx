@@ -228,7 +228,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         onChange={(v) => updateField('name', v)}
                         options={presets['CELL_NAME'] || []}
                         placeholder="样本名称"
-                        compact
                     />
                 </div>
                 <div className="space-y-1">
@@ -238,7 +237,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         onChange={(v) => updateField('type', v)}
                         options={presets['CELL_TYPE'] || []}
                         placeholder="细胞类型"
-                        compact
                     />
                 </div>
                 <div className="space-y-1">
@@ -247,7 +245,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         value={data.batchNo}
                         onChange={(e) => updateField('batchNo', e.target.value)}
                         placeholder="批次号"
-                        className="h-8 text-xs"
                     />
                 </div>
                 <div className="space-y-1">
@@ -257,7 +254,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         onChange={(v) => updateField('passage', v)}
                         options={presets['PASSAGE'] || []}
                         placeholder="代数"
-                        compact
                     />
                 </div>
             </div>
@@ -271,7 +267,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         step="0.1"
                         value={data.quantity}
                         onChange={(e) => updateField('quantity', parseFloat(e.target.value) || 0)}
-                        className="h-8 text-xs"
                     />
                 </div>
                 <div className="space-y-1">
@@ -283,7 +278,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         max="1"
                         value={data.viability}
                         onChange={(e) => updateField('viability', parseFloat(e.target.value) || 0)}
-                        className="h-8 text-xs"
                     />
                 </div>
                 <div className="space-y-1">
@@ -293,7 +287,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         onChange={(v) => updateField('concentration', v)}
                         options={presets['CRYO_DENSITY'] || []}
                         placeholder="浓度"
-                        compact
                     />
                 </div>
                 <div className="space-y-1">
@@ -303,7 +296,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         onChange={(v) => updateField('media', v)}
                         options={presets['CRYO_MEDIA'] || []}
                         placeholder="冻存液"
-                        compact
                     />
                 </div>
                 <div className="space-y-1">
@@ -313,7 +305,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                         onChange={(v) => updateField('sterileCheck', v)}
                         options={presets['STERILE_CHECK'] || []}
                         placeholder="选择"
-                        compact
                     />
                 </div>
             </div>
@@ -325,7 +316,6 @@ function CardRow({ index, label, data, onChange, presets }: CardRowProps) {
                     value={data.notes}
                     onChange={(e) => updateField('notes', e.target.value)}
                     placeholder="备注信息..."
-                    className="h-8 text-xs"
                 />
             </div>
         </div>
@@ -487,7 +477,7 @@ export function BatchCheckInDialog({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className={cn(
                 "max-h-[85vh] overflow-y-auto",
-                !useSameData && isBatch ? "max-w-4xl" : "max-w-lg"
+                !useSameData && isBatch ? "max-w-4xl" : "max-w-[40rem]"
             )}>
                 <DialogHeader>
                     <DialogTitle>
@@ -532,7 +522,6 @@ export function BatchCheckInDialog({
                                     onChange={(v) => setFormData(prev => ({ ...prev, name: v }))}
                                     options={presets['CELL_NAME'] || []}
                                     placeholder="选择或输入"
-                                    compact
                                 />
                             </div>
                             <div className="space-y-1">
@@ -542,7 +531,6 @@ export function BatchCheckInDialog({
                                     onChange={(v) => setFormData(prev => ({ ...prev, type: v }))}
                                     options={presets['CELL_TYPE'] || []}
                                     placeholder="选择或输入"
-                                    compact
                                 />
                             </div>
                         </div>
@@ -554,7 +542,6 @@ export function BatchCheckInDialog({
                                     placeholder="20260105-01"
                                     value={formData.batchNo}
                                     onChange={(e) => setFormData(prev => ({ ...prev, batchNo: e.target.value }))}
-                                    className="h-8 text-xs"
                                 />
                             </div>
                             <div className="space-y-1">
@@ -564,7 +551,6 @@ export function BatchCheckInDialog({
                                     step="0.1"
                                     value={formData.quantity}
                                     onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
-                                    className="h-8 text-xs"
                                 />
                             </div>
                             <div className="space-y-1">
@@ -576,7 +562,6 @@ export function BatchCheckInDialog({
                                     max="1"
                                     value={formData.viability}
                                     onChange={(e) => setFormData(prev => ({ ...prev, viability: parseFloat(e.target.value) || 0 }))}
-                                    className="h-8 text-xs"
                                 />
                             </div>
                             <div className="space-y-1">
@@ -586,7 +571,6 @@ export function BatchCheckInDialog({
                                     onChange={(v) => setFormData(prev => ({ ...prev, passage: v }))}
                                     options={presets['PASSAGE'] || []}
                                     placeholder="选择"
-                                    compact
                                 />
                             </div>
                         </div>
@@ -599,7 +583,6 @@ export function BatchCheckInDialog({
                                     onChange={(v) => setFormData(prev => ({ ...prev, concentration: v }))}
                                     options={presets['CRYO_DENSITY'] || []}
                                     placeholder="选择或输入"
-                                    compact
                                 />
                             </div>
                             <div className="space-y-1">
@@ -609,7 +592,6 @@ export function BatchCheckInDialog({
                                     onChange={(v) => setFormData(prev => ({ ...prev, media: v }))}
                                     options={presets['CRYO_MEDIA'] || []}
                                     placeholder="选择或输入"
-                                    compact
                                 />
                             </div>
                             <div className="space-y-1">
@@ -619,7 +601,6 @@ export function BatchCheckInDialog({
                                     onChange={(v) => setFormData(prev => ({ ...prev, sterileCheck: v }))}
                                     options={presets['STERILE_CHECK'] || []}
                                     placeholder="选择"
-                                    compact
                                 />
                             </div>
                         </div>
@@ -630,7 +611,6 @@ export function BatchCheckInDialog({
                                 placeholder="其他备注信息..."
                                 value={formData.notes}
                                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                                className="h-8 text-xs"
                             />
                         </div>
                     </div>

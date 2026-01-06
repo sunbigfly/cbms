@@ -412,7 +412,7 @@ export function BatchEditDialog({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className={cn(
                 "max-h-[90vh] overflow-y-auto",
-                !useSameData && isBatch ? "max-w-4xl" : "max-w-lg"
+                !useSameData && isBatch ? "max-w-4xl" : "max-w-[50rem]"
             )}>
                 <DialogHeader>
                     <DialogTitle>
@@ -502,7 +502,6 @@ export function BatchEditDialog({
                                         <div className="space-y-1">
                                             <Label className="text-xs">批次号</Label>
                                             <Input
-                                                className="h-8 text-xs"
                                                 value={formData.batchNo || ''}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, batchNo: e.target.value }))}
                                             />
@@ -519,7 +518,6 @@ export function BatchEditDialog({
                                         <div className="space-y-1">
                                             <Label className="text-xs">体积(mL)</Label>
                                             <Input
-                                                className="h-8 text-xs"
                                                 type="number"
                                                 step="0.1"
                                                 value={formData.quantity || 0}
@@ -529,7 +527,6 @@ export function BatchEditDialog({
                                         <div className="space-y-1">
                                             <Label className="text-xs">活性(0-1)</Label>
                                             <Input
-                                                className="h-8 text-xs"
                                                 type="number"
                                                 step="0.01"
                                                 min="0"
@@ -573,7 +570,7 @@ export function BatchEditDialog({
                                     <div className="space-y-1">
                                         <Label className="text-xs">备注</Label>
                                         <Textarea
-                                            className="text-xs resize-none"
+                                            className="resize-none"
                                             rows={2}
                                             value={formData.notes || ''}
                                             onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
@@ -651,7 +648,6 @@ export function BatchEditDialog({
                                                         <div className="space-y-1">
                                                             <Label className="text-xs">批次号</Label>
                                                             <Input
-                                                                className="h-8 text-xs"
                                                                 value={data.batchNo}
                                                                 onChange={(e) => updateRowData(globalIndex, 'batchNo', e.target.value)}
                                                             />
@@ -671,7 +667,6 @@ export function BatchEditDialog({
                                                         <div className="space-y-1">
                                                             <Label className="text-xs">体积(mL)</Label>
                                                             <Input
-                                                                className="h-8 text-xs"
                                                                 type="number"
                                                                 step="0.1"
                                                                 value={data.quantity}
@@ -681,7 +676,6 @@ export function BatchEditDialog({
                                                         <div className="space-y-1">
                                                             <Label className="text-xs">活性(0-1)</Label>
                                                             <Input
-                                                                className="h-8 text-xs"
                                                                 type="number"
                                                                 step="0.01"
                                                                 min="0"
@@ -722,7 +716,7 @@ export function BatchEditDialog({
                                                     <div className="space-y-1">
                                                         <Label className="text-xs">备注</Label>
                                                         <Textarea
-                                                            className="text-xs resize-none"
+                                                            className="resize-none"
                                                             rows={2}
                                                             value={data.notes}
                                                             onChange={(e) => updateRowData(globalIndex, 'notes', e.target.value)}
