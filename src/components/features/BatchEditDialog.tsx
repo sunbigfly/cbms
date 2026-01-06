@@ -13,8 +13,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Loader2, AlertCircle, ChevronDown } from 'lucide-react'
+import { Loader2, AlertCircle, ChevronDown, Copy, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { MiniBoxPreview } from './MiniBoxPreview'
+import { Checkbox } from '@/components/ui/checkbox'
+import { cn } from '@/lib/utils'
 
 // 可编辑下拉框组件
 interface EditableSelectProps {
@@ -171,6 +174,9 @@ interface BatchEditDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     sampleIds: string[]
+    slotLabels?: string[]      // 位置标签
+    boxRows?: number           // 盒子行数
+    boxCols?: number           // 盒子列数
     onSuccess?: () => void
 }
 
@@ -201,6 +207,9 @@ export function BatchEditDialog({
     open,
     onOpenChange,
     sampleIds,
+    slotLabels = [],
+    boxRows = 9,
+    boxCols = 9,
     onSuccess
 }: BatchEditDialogProps) {
     const { data: session } = useSession()
@@ -209,9 +218,14 @@ export function BatchEditDialog({
     const [error, setError] = useState<string | null>(null)
     const [loadedSamples, setLoadedSamples] = useState<SampleData[]>([])
     const [formData, setFormData] = useState<Partial<EditFormData>>({})
+    const [formDataList, setFormDataList] = useState<EditFormData[]>([])
+    const [useSameData, setUseSameData] = useState(true)
+    const [currentPage, setCurrentPage] = useState(0)
     const presets = usePresets()
 
     const currentUser = session?.user?.name || ''
+    const isBatch = sampleIds.length > 1
+    const ITEMS_PER_PAGE = 1
 
     // 当 dialog 打开时，从 API 获取样本数据
     useEffect(() => {
@@ -232,7 +246,7 @@ export function BatchEditDialog({
                 if (samples && samples.length > 0) {
                     setLoadedSamples(samples)
                     const first = samples[0]
-                    setFormData({
+                    const firstFormData = {
                         name: first.name || '',
                         type: first.type || '',
                         batchNo: first.batchNo || '',
@@ -243,7 +257,21 @@ export function BatchEditDialog({
                         media: first.media || '',
                         notes: first.notes || '',
                         sterileCheck: first.sterileCheck || '',
-                    })
+                    }
+                    setFormData(firstFormData)
+                    // 初始化 formDataList 为每个样本的实际数据
+                    setFormDataList(samples.map((s: SampleData) => ({
+                        name: s.name || '',
+                        type: s.type || '',
+                        batchNo: s.batchNo || '',
+                        quantity: s.quantity || 1,
+                        concentration: s.concentration || '',
+                        viability: s.viability || 0.95,
+                        passage: s.passage || '',
+                        media: s.media || '',
+                        notes: s.notes || '',
+                        sterileCheck: s.sterileCheck || '',
+                    })))
                 }
             } catch (err) {
                 setError(err instanceof Error ? err.message : '获取样本信息失败')
@@ -262,39 +290,101 @@ export function BatchEditDialog({
         if (!open) {
             setLoadedSamples([])
             setFormData({})
+            setFormDataList([])
             setError(null)
+            setUseSameData(true)
+            setCurrentPage(0)
         }
     }, [open])
 
-    const isBatch = sampleIds.length > 1
     const isSameBatch = areSameBatch(loadedSamples)
 
+    // 辅助函数：获取位置标签
+    const getLabel = (index: number) => slotLabels[index] || `#${index + 1}`
+
+    // 辅助函数：更新 formDataList 中某行的数据
+    const updateRowData = useCallback((index: number, field: keyof EditFormData, value: string | number) => {
+        setFormDataList(prev => {
+            const newList = [...prev]
+            newList[index] = { ...newList[index], [field]: value }
+            return newList
+        })
+    }, [])
+
+    // 辅助函数：复制首行到所有行
+    const copyFirstToAll = () => {
+        if (formDataList.length > 0) {
+            const first = formDataList[0]
+            setFormDataList(formDataList.map(() => ({ ...first })))
+        }
+    }
+
+    // 分页
+    const totalPages = Math.ceil(sampleIds.length / ITEMS_PER_PAGE)
+    const startIndex = currentPage * ITEMS_PER_PAGE
+    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, sampleIds.length)
+    const currentItems = formDataList.slice(startIndex, endIndex)
+
     const handleSubmit = async () => {
-        if (!formData.name || !formData.type) {
-            setError('请填写样本名称和类型')
-            return
+        if (useSameData) {
+            if (!formData.name || !formData.type) {
+                setError('请填写样本名称和类型')
+                return
+            }
+        } else {
+            // 验证每行数据
+            for (let i = 0; i < formDataList.length; i++) {
+                if (!formDataList[i].name || !formDataList[i].type) {
+                    setError(`位置 ${getLabel(i)} 缺少样本名称或类型`)
+                    return
+                }
+            }
         }
 
         setLoading(true)
         setError(null)
 
         try {
-            const response = await fetch('/api/samples/batch', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sampleIds,
-                    updates: {
-                        ...formData,
-                        unit: 'mL',
-                    },
-                    userId: currentUser,
-                }),
-            })
+            if (useSameData) {
+                // 统一修改：所有样本使用相同数据
+                const response = await fetch('/api/samples/batch', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sampleIds,
+                        updates: {
+                            ...formData,
+                            unit: 'mL',
+                        },
+                        userId: currentUser,
+                    }),
+                })
 
-            if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.error || '更新失败')
+                if (!response.ok) {
+                    const data = await response.json()
+                    throw new Error(data.error || '更新失败')
+                }
+            } else {
+                // 依次修改：每个样本使用对应数据
+                for (let i = 0; i < sampleIds.length; i++) {
+                    const response = await fetch('/api/samples/batch', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sampleIds: [sampleIds[i]],
+                            updates: {
+                                ...formDataList[i],
+                                unit: 'mL',
+                            },
+                            userId: currentUser,
+                        }),
+                    })
+
+                    if (!response.ok) {
+                        const data = await response.json()
+                        throw new Error(`位置 ${getLabel(i)} 更新失败: ${data.error || '未知错误'}`)
+                    }
+                }
             }
 
             onSuccess?.()
@@ -314,7 +404,10 @@ export function BatchEditDialog({
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className={cn(
+                "max-h-[90vh] overflow-y-auto",
+                !useSameData && isBatch ? "max-w-4xl" : "max-w-lg"
+            )}>
                 <DialogHeader>
                     <DialogTitle>
                         {isBatch ? `批量编辑 (${sampleIds.length} 个样本)` : '编辑样本'}
@@ -338,129 +431,341 @@ export function BatchEditDialog({
                             </div>
                         )}
 
-                        {isBatch && !isSameBatch && (
+                        {/* 批量/依次修改切换 */}
+                        {isBatch && (
+                            <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-muted/50">
+                                <Checkbox
+                                    id="useSameData"
+                                    checked={useSameData}
+                                    onCheckedChange={(v) => setUseSameData(!!v)}
+                                />
+                                <label htmlFor="useSameData" className="text-sm cursor-pointer">
+                                    所有样本使用相同的修改（取消勾选可依次修改每个位置）
+                                </label>
+                            </div>
+                        )}
+
+                        {isBatch && !isSameBatch && useSameData && (
                             <div className="flex items-start gap-2 px-3 py-2 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm">
                                 <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
                                 <div>
                                     <p className="font-medium text-yellow-800 dark:text-yellow-200">选中的样本不属于同一批次</p>
                                     <p className="text-yellow-700 dark:text-yellow-300 text-xs mt-0.5">
-                                        建议逐个编辑
+                                        建议取消勾选，依次编辑每个位置
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        <div className="grid gap-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>样本名称 *</Label>
-                                    <EditableSelect
-                                        value={formData.name || ''}
-                                        onChange={(v) => setFormData(prev => ({ ...prev, name: v }))}
-                                        options={presets['CELL_NAME'] || []}
-                                        placeholder="选择或输入"
+                        {/* 统一修改表单 */}
+                        {(useSameData || !isBatch) && (
+                            <div className="flex gap-4">
+                                {/* 小型盒子预览 - 仅单个编辑时显示 */}
+                                {!isBatch && boxRows > 0 && boxCols > 0 && slotLabels.length > 0 && (
+                                    <MiniBoxPreview
+                                        rows={boxRows}
+                                        cols={boxCols}
+                                        selectedLabels={slotLabels}
                                     />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>细胞类型 *</Label>
-                                    <EditableSelect
-                                        value={formData.type || ''}
-                                        onChange={(v) => setFormData(prev => ({ ...prev, type: v }))}
-                                        options={presets['CELL_TYPE'] || []}
-                                        placeholder="选择或输入"
-                                    />
+                                )}
+
+                                <div className="flex-1 grid gap-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">样本名称 *</Label>
+                                            <EditableSelect
+                                                value={formData.name || ''}
+                                                onChange={(v) => setFormData(prev => ({ ...prev, name: v }))}
+                                                options={presets['CELL_NAME'] || []}
+                                                placeholder="选择或输入"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">细胞类型 *</Label>
+                                            <EditableSelect
+                                                value={formData.type || ''}
+                                                onChange={(v) => setFormData(prev => ({ ...prev, type: v }))}
+                                                options={presets['CELL_TYPE'] || []}
+                                                placeholder="选择或输入"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-4 gap-3">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">批次号</Label>
+                                            <Input
+                                                className="h-8 text-xs"
+                                                value={formData.batchNo || ''}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, batchNo: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">代数</Label>
+                                            <EditableSelect
+                                                value={formData.passage || ''}
+                                                onChange={(v) => setFormData(prev => ({ ...prev, passage: v }))}
+                                                options={presets['PASSAGE'] || []}
+                                                placeholder="选择"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">体积(mL)</Label>
+                                            <Input
+                                                className="h-8 text-xs"
+                                                type="number"
+                                                step="0.1"
+                                                value={formData.quantity || 0}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">活性(0-1)</Label>
+                                            <Input
+                                                className="h-8 text-xs"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                max="1"
+                                                value={formData.viability || 0}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, viability: parseFloat(e.target.value) || 0 }))}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">浓度</Label>
+                                            <EditableSelect
+                                                value={formData.concentration || ''}
+                                                onChange={(v) => setFormData(prev => ({ ...prev, concentration: v }))}
+                                                options={presets['CRYO_DENSITY'] || []}
+                                                placeholder="选择"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">冻存液</Label>
+                                            <EditableSelect
+                                                value={formData.media || ''}
+                                                onChange={(v) => setFormData(prev => ({ ...prev, media: v }))}
+                                                options={presets['CRYO_MEDIA'] || []}
+                                                placeholder="选择"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">无菌验证</Label>
+                                            <EditableSelect
+                                                value={formData.sterileCheck || ''}
+                                                onChange={(v) => setFormData(prev => ({ ...prev, sterileCheck: v }))}
+                                                options={presets['STERILE_CHECK'] || []}
+                                                placeholder="选择"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">备注</Label>
+                                        <Textarea
+                                            className="text-xs resize-none"
+                                            rows={2}
+                                            value={formData.notes || ''}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                                        />
+                                    </div>
                                 </div>
                             </div>
+                        )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>批次号</Label>
-                                    <Input
-                                        value={formData.batchNo || ''}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, batchNo: e.target.value }))}
-                                    />
+                        {/* 依次修改卡片 */}
+                        {!useSameData && isBatch && formDataList.length > 0 && (
+                            <div className="space-y-3">
+                                {/* 工具栏 */}
+                                <div className="flex items-center justify-between">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={copyFirstToAll}
+                                        className="text-xs"
+                                    >
+                                        <Copy className="h-3 w-3 mr-1" />
+                                        复制首行到所有行
+                                    </Button>
+                                    <span className="text-xs text-muted-foreground">
+                                        共 {sampleIds.length} 个位置
+                                    </span>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>体积 (mL)</Label>
-                                    <Input
-                                        type="number"
-                                        step="0.1"
-                                        value={formData.quantity || 0}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+
+                                {/* 卡片和预览 */}
+                                <div className="flex gap-4">
+                                    {/* 小型盒子预览 */}
+                                    <MiniBoxPreview
+                                        rows={boxRows}
+                                        cols={boxCols}
+                                        selectedLabels={slotLabels}
+                                        currentLabel={getLabel(startIndex)}
                                     />
+
+                                    {/* 卡片 */}
+                                    <div className="flex-1">
+                                        {currentItems.map((data, localIndex) => {
+                                            const globalIndex = startIndex + localIndex
+                                            return (
+                                                <div key={sampleIds[globalIndex]} className="border rounded-lg p-3 bg-card">
+                                                    <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                                                        <span className="text-xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                                                            {getLabel(globalIndex)}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {loadedSamples[globalIndex]?.name || '未命名样本'}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-4 gap-2 mb-2">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">样本名称 *</Label>
+                                                            <EditableSelect
+                                                                value={data.name}
+                                                                onChange={(v) => updateRowData(globalIndex, 'name', v)}
+                                                                options={presets['CELL_NAME'] || []}
+                                                                placeholder="样本名称"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">细胞类型 *</Label>
+                                                            <EditableSelect
+                                                                value={data.type}
+                                                                onChange={(v) => updateRowData(globalIndex, 'type', v)}
+                                                                options={presets['CELL_TYPE'] || []}
+                                                                placeholder="细胞类型"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">批次号</Label>
+                                                            <Input
+                                                                className="h-8 text-xs"
+                                                                value={data.batchNo}
+                                                                onChange={(e) => updateRowData(globalIndex, 'batchNo', e.target.value)}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">代数</Label>
+                                                            <EditableSelect
+                                                                value={data.passage}
+                                                                onChange={(v) => updateRowData(globalIndex, 'passage', v)}
+                                                                options={presets['PASSAGE'] || []}
+                                                                placeholder="代数"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-5 gap-2 mb-2">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">体积(mL)</Label>
+                                                            <Input
+                                                                className="h-8 text-xs"
+                                                                type="number"
+                                                                step="0.1"
+                                                                value={data.quantity}
+                                                                onChange={(e) => updateRowData(globalIndex, 'quantity', parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">活性(0-1)</Label>
+                                                            <Input
+                                                                className="h-8 text-xs"
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max="1"
+                                                                value={data.viability}
+                                                                onChange={(e) => updateRowData(globalIndex, 'viability', parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">浓度</Label>
+                                                            <EditableSelect
+                                                                value={data.concentration}
+                                                                onChange={(v) => updateRowData(globalIndex, 'concentration', v)}
+                                                                options={presets['CRYO_DENSITY'] || []}
+                                                                placeholder="浓度"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">冻存液</Label>
+                                                            <EditableSelect
+                                                                value={data.media}
+                                                                onChange={(v) => updateRowData(globalIndex, 'media', v)}
+                                                                options={presets['CRYO_MEDIA'] || []}
+                                                                placeholder="冻存液"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs">无菌验证</Label>
+                                                            <EditableSelect
+                                                                value={data.sterileCheck}
+                                                                onChange={(v) => updateRowData(globalIndex, 'sterileCheck', v)}
+                                                                options={presets['STERILE_CHECK'] || []}
+                                                                placeholder="选择"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs">备注</Label>
+                                                        <Textarea
+                                                            className="text-xs resize-none"
+                                                            rows={2}
+                                                            value={data.notes}
+                                                            onChange={(e) => updateRowData(globalIndex, 'notes', e.target.value)}
+                                                            placeholder="备注信息..."
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
+
+                                {/* 分页 */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                                            disabled={currentPage === 0}
+                                        >
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                        <span className="text-sm text-muted-foreground">
+                                            {currentPage + 1} / {totalPages}
+                                            <span className="ml-2 text-xs">
+                                                (显示 {startIndex + 1}-{endIndex} / 共 {sampleIds.length})
+                                            </span>
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                                            disabled={currentPage >= totalPages - 1}
+                                        >
+                                            <ChevronRightIcon className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
+                        )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>活性 (0-1)</Label>
-                                    <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        max="1"
-                                        value={formData.viability || 0}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, viability: parseFloat(e.target.value) || 0 }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>浓度</Label>
-                                    <EditableSelect
-                                        value={formData.concentration || ''}
-                                        onChange={(v) => setFormData(prev => ({ ...prev, concentration: v }))}
-                                        options={presets['CRYO_DENSITY'] || []}
-                                        placeholder="选择或输入"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>代数</Label>
-                                    <EditableSelect
-                                        value={formData.passage || ''}
-                                        onChange={(v) => setFormData(prev => ({ ...prev, passage: v }))}
-                                        options={presets['PASSAGE'] || []}
-                                        placeholder="选择或输入"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>冻存液</Label>
-                                    <EditableSelect
-                                        value={formData.media || ''}
-                                        onChange={(v) => setFormData(prev => ({ ...prev, media: v }))}
-                                        options={presets['CRYO_MEDIA'] || []}
-                                        placeholder="选择或输入"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>无菌验证</Label>
-                                <EditableSelect
-                                    value={formData.sterileCheck || ''}
-                                    onChange={(v) => setFormData(prev => ({ ...prev, sterileCheck: v }))}
-                                    options={presets['STERILE_CHECK'] || []}
-                                    placeholder="选择"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>备注</Label>
-                                <Textarea
-                                    value={formData.notes || ''}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                                />
-                            </div>
-                        </div>
-
-                        <DialogFooter>
+                        <DialogFooter className="sticky bottom-0 bg-background pt-4 mt-4 border-t">
                             <Button variant="outline" onClick={handleClose} disabled={loading}>
                                 取消
                             </Button>
                             <Button onClick={handleSubmit} disabled={loading}>
                                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                保存更改
+                                {useSameData ? '保存更改' : `保存 ${sampleIds.length} 个样本`}
                             </Button>
                         </DialogFooter>
                     </>

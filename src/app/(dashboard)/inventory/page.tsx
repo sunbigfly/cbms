@@ -187,9 +187,9 @@ function ChildProgressBar({
 // Box Grid Component with Selection Support
 interface BoxGridProps {
     box: BoxDetail | null
-    onCheckIn?: (slotIds: string[]) => void
-    onCheckOut?: (sampleIds: string[]) => void
-    onEdit?: (sampleIds: string[]) => void
+    onCheckIn?: (slotIds: string[], slotLabels: string[]) => void
+    onCheckOut?: (sampleIds: string[], slotLabels: string[]) => void
+    onEdit?: (sampleIds: string[], slotLabels: string[]) => void
     onSampleSelect?: (sample: SlotInfo['sample'] | null, slotPosition: string, batchGroupSlotIds: string[]) => void
 }
 
@@ -310,7 +310,11 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
     // Handle action buttons
     const handleCheckInClick = () => {
         if (selectionType === 'empty' && onCheckIn) {
-            onCheckIn(getSelectedSlotIds())
+            const slotIds = getSelectedSlotIds()
+            const slotLabels = slotsInfo
+                .filter(s => selectedSlots.has(s.id))
+                .map(s => `${s.rowLabel}${s.colLabel}`)
+            onCheckIn(slotIds, slotLabels)
         }
     }
 
@@ -319,7 +323,10 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
             const sampleIds = slotsInfo
                 .filter(s => selectedSlots.has(s.id) && s.sample)
                 .map(s => s.sample!.id)
-            onCheckOut(sampleIds)
+            const slotLabels = slotsInfo
+                .filter(s => selectedSlots.has(s.id) && s.sample)
+                .map(s => `${s.rowLabel}${s.colLabel}`)
+            onCheckOut(sampleIds, slotLabels)
         }
     }
 
@@ -328,7 +335,10 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
             const sampleIds = slotsInfo
                 .filter(s => selectedSlots.has(s.id) && s.sample)
                 .map(s => s.sample!.id)
-            onEdit(sampleIds)
+            const slotLabels = slotsInfo
+                .filter(s => selectedSlots.has(s.id) && s.sample)
+                .map(s => `${s.rowLabel}${s.colLabel}`)
+            onEdit(sampleIds, slotLabels)
         }
     }
 
@@ -571,21 +581,25 @@ export default function InventoryPage() {
     const [checkOutDialogOpen, setCheckOutDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([])
+    const [selectedSlotLabels, setSelectedSlotLabels] = useState<string[]>([])
     const [selectedSampleIds, setSelectedSampleIds] = useState<string[]>([])
 
     // Callbacks for BoxGrid actions
-    const handleCheckIn = (slotIds: string[]) => {
+    const handleCheckIn = (slotIds: string[], slotLabels: string[]) => {
         setSelectedSlotIds(slotIds)
+        setSelectedSlotLabels(slotLabels)
         setCheckInDialogOpen(true)
     }
 
-    const handleCheckOut = (sampleIds: string[]) => {
+    const handleCheckOut = (sampleIds: string[], slotLabels: string[]) => {
         setSelectedSampleIds(sampleIds)
+        setSelectedSlotLabels(slotLabels)
         setCheckOutDialogOpen(true)
     }
 
-    const handleEdit = (sampleIds: string[]) => {
+    const handleEdit = (sampleIds: string[], slotLabels: string[]) => {
         setSelectedSampleIds(sampleIds)
+        setSelectedSlotLabels(slotLabels)
         setEditDialogOpen(true)
     }
 
@@ -603,6 +617,7 @@ export default function InventoryPage() {
 
         // Clear selections
         setSelectedSlotIds([])
+        setSelectedSlotLabels([])
         setSelectedSampleIds([])
         // Note: We don't clear selectedSlots in BoxGrid here as it requires prop drilling or context
         // Instead, BoxGrid effects will handle it when boxDetail updates
@@ -1116,18 +1131,27 @@ export default function InventoryPage() {
                 open={checkInDialogOpen}
                 onOpenChange={setCheckInDialogOpen}
                 slotIds={selectedSlotIds}
+                slotLabels={selectedSlotLabels}
+                boxRows={boxDetail?.rows}
+                boxCols={boxDetail?.columns}
                 onSuccess={handleDialogSuccess}
             />
             <BatchCheckOutDialog
                 open={checkOutDialogOpen}
                 onOpenChange={setCheckOutDialogOpen}
                 sampleIds={selectedSampleIds}
+                slotLabels={selectedSlotLabels}
+                boxRows={boxDetail?.rows}
+                boxCols={boxDetail?.columns}
                 onSuccess={handleDialogSuccess}
             />
             <BatchEditDialog
                 open={editDialogOpen}
                 onOpenChange={setEditDialogOpen}
                 sampleIds={selectedSampleIds}
+                slotLabels={selectedSlotLabels}
+                boxRows={boxDetail?.rows}
+                boxCols={boxDetail?.columns}
                 onSuccess={handleDialogSuccess}
             />
         </div>

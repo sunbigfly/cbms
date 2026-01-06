@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select'
 import { useState, useEffect } from 'react'
 import { Loader2, AlertTriangle } from 'lucide-react'
+import { MiniBoxPreview } from './MiniBoxPreview'
 
 interface SampleInfo {
     id: string
@@ -43,6 +44,9 @@ interface BatchCheckOutDialogProps {
     onOpenChange: (open: boolean) => void
     sampleIds: string[]
     samples?: SampleInfo[]
+    slotLabels?: string[]      // 位置标签
+    boxRows?: number           // 盒子行数
+    boxCols?: number           // 盒子列数
     onSuccess?: () => void
 }
 
@@ -59,6 +63,9 @@ export function BatchCheckOutDialog({
     onOpenChange,
     sampleIds,
     samples = [],
+    slotLabels = [],
+    boxRows = 9,
+    boxCols = 9,
     onSuccess
 }: BatchCheckOutDialogProps) {
     const [loading, setLoading] = useState(false)
@@ -189,25 +196,37 @@ export function BatchCheckOutDialog({
                         </div>
                     )}
 
-                    {/* Sample preview */}
-                    {displaySamples.length > 0 && (
-                        <div className="max-h-32 overflow-y-auto rounded-lg border bg-muted/30 p-2">
-                            <div className="text-xs text-muted-foreground mb-1">即将出库的样本：</div>
-                            <div className="space-y-1">
-                                {displaySamples.slice(0, 5).map((sample) => (
-                                    <div key={sample.id} className="text-sm flex justify-between">
-                                        <span className="font-medium">{sample.name}</span>
-                                        <span className="text-muted-foreground">{sample.type}</span>
-                                    </div>
-                                ))}
-                                {displaySamples.length > 5 && (
-                                    <div className="text-xs text-muted-foreground">
-                                        ...还有 {displaySamples.length - 5} 个样本
-                                    </div>
-                                )}
+                    {/* 盒子预览和样本列表 */}
+                    <div className="flex gap-3">
+                        {/* 小型盒子预览 */}
+                        {boxRows > 0 && boxCols > 0 && slotLabels.length > 0 && (
+                            <MiniBoxPreview
+                                rows={boxRows}
+                                cols={boxCols}
+                                selectedLabels={slotLabels}
+                            />
+                        )}
+
+                        {/* Sample preview */}
+                        {displaySamples.length > 0 && (
+                            <div className="flex-1 max-h-48 overflow-y-auto rounded-lg border bg-muted/30 p-2">
+                                <div className="text-xs text-muted-foreground mb-1">即将出库的样本：</div>
+                                <div className="space-y-1">
+                                    {displaySamples.map((sample, index) => (
+                                        <div key={sample.id} className="text-[10px] flex items-center gap-1.5">
+                                            {slotLabels[index] && (
+                                                <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1 py-0.5 rounded">
+                                                    {slotLabels[index]}
+                                                </span>
+                                            )}
+                                            <span className="font-medium">{sample.name}</span>
+                                            <span className="text-muted-foreground">{sample.type}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="space-y-4">
                         <div className="space-y-2">
