@@ -148,7 +148,9 @@ echo ""
 # --- 管理员初始化 ---
 echo "--- 🔑 初始管理员账户设置 ---"
 read_input "管理员账号 (工号)" "admin" ADMIN_ID
-read_input "管理员密码" "724287349" ADMIN_PWD
+# 生成一个随即密码作为建议值
+RANDOM_PWD=$(openssl rand -base64 12)
+read_input "管理员密码" "$RANDOM_PWD" ADMIN_PWD
 read_input "管理员邮箱" "admin@cbms.local" ADMIN_EMAIL
 echo ""
 

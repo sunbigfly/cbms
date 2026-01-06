@@ -29,7 +29,7 @@ async function main() {
 
     // 2. Create the single Admin user
     const adminId = process.env.ADMIN_EMPLOYEE_ID || 'admin'
-    const adminPwdPlain = process.env.ADMIN_PASSWORD || '724287349'
+    const adminPwdPlain = process.env.ADMIN_PASSWORD || 'changeme'
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@cbms.local'
 
     // Warn if using defaults
