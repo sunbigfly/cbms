@@ -94,7 +94,7 @@ export function SideNav() {
                 className={cn(
                     'sticky top-0 h-screen flex flex-col border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
                     mounted && 'transition-all duration-300',
-                    collapsed ? 'w-16' : 'w-36'
+                    collapsed ? 'w-16' : 'w-42'
                 )}
             >
                 {/* Logo */}
@@ -159,38 +159,43 @@ export function SideNav() {
                 </nav>
 
                 {/* Bottom Section: User & Collapse */}
-                <div className="border-t p-2 space-y-2">
-                    {/* User Info */}
+                {/* Bottom Section: User & Collapse */}
+                <div className="border-t p-2 space-y-1">
+                    {/* User Info & Logout Unified */}
                     {status === 'authenticated' && (
                         <div className={cn(
-                            'flex items-center p-2 rounded-lg overflow-hidden',
-                            collapsed ? 'justify-center' : ''
+                            'flex items-center rounded-md transition-colors',
+                            collapsed ? 'flex-col gap-2 justify-center py-2' : 'justify-between px-2 py-2 hover:bg-accent/50'
                         )}>
-                            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium flex-shrink-0">
-                                {userInitial}
-                            </div>
                             <div className={cn(
-                                "flex-1 min-w-0",
-                                mounted && "transition-all duration-300",
-                                collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
+                                "flex items-center min-w-0 transition-all",
+                                collapsed ? "justify-center gap-0" : "flex-1 gap-3"
                             )}>
-                                <p className="text-sm font-medium truncate">{userName}</p>
-                                {isAdmin && (
-                                    <p className="text-xs text-primary">管理员</p>
-                                )}
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-medium flex-shrink-0">
+                                    {userInitial}
+                                </div>
+                                <div className={cn(
+                                    "flex flex-col min-w-0",
+                                    mounted && "transition-all duration-300",
+                                    collapsed ? "w-0 opacity-0 overflow-hidden" : "w-auto opacity-100"
+                                )}>
+                                    <p className="text-sm font-medium truncate leading-none">{userName}</p>
+                                    {isAdmin && (
+                                        <p className="text-[10px] text-muted-foreground mt-1">管理员</p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
 
-                    {/* Sign Out Button */}
-                    {status === 'authenticated' && (
-                        collapsed ? (
+                            {/* Logout Action */}
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
                                         variant="ghost"
-                                        size="sm"
-                                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        size="icon"
+                                        className={cn(
+                                            "text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 flex-shrink-0",
+                                            !collapsed && "ml-2"
+                                        )}
                                         onClick={handleSignOut}
                                     >
                                         <LogOut className="h-4 w-4" />
@@ -198,42 +203,34 @@ export function SideNav() {
                                 </TooltipTrigger>
                                 <TooltipContent side="right">退出登录</TooltipContent>
                             </Tooltip>
-                        ) : (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={handleSignOut}
-                            >
-                                <LogOut className="h-4 w-4 mr-2" />
-                                退出登录
-                            </Button>
-                        )
+                        </div>
                     )}
 
                     {/* Login Button (when not authenticated) */}
                     {status !== 'authenticated' && (
                         <Button variant="outline" size="sm" className="w-full" asChild>
                             <Link href="/login">
-                                {collapsed ? '登' : '登录'}
+                                {collapsed ? '登录' : '登录系统'}
                             </Link>
                         </Button>
                     )}
+
+                    <div className="h-px bg-border/50 my-1 mx-2" />
 
                     {/* Collapse Toggle */}
                     <Button
                         variant="ghost"
                         size="sm"
-                        className={cn('w-full overflow-hidden', collapsed ? 'justify-center' : 'justify-start')}
+                        className={cn('w-full', collapsed ? 'justify-center px-0' : 'justify-start px-2')}
                         onClick={() => setCollapsed(!collapsed)}
                     >
-                        <ChevronLeft className={cn("h-4 w-4 transition-transform duration-300 flex-shrink-0", collapsed && "rotate-180")} />
+                        <ChevronLeft className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300 flex-shrink-0", collapsed && "rotate-180")} />
                         <span className={cn(
-                            "whitespace-nowrap",
+                            "text-muted-foreground whitespace-nowrap overflow-hidden",
                             mounted && "transition-all duration-300",
                             collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
                         )}>
-                            收起
+                            收起导航
                         </span>
                     </Button>
                 </div>
