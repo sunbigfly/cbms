@@ -12,6 +12,8 @@ import { BatchEditDialog } from '@/components/features/BatchEditDialog'
 import { SlotDetailPanel, SampleDetail } from '@/components/features/SlotDetailPanel'
 import { LibrarySwitch, LibraryMode } from '@/components/features/LibrarySwitch'
 import { CreateFacilityWizard } from '@/components/features/CreateFacilityWizard'
+import { SampleFilterDialog, FilterState, FilterResult } from '@/components/features/SampleFilterDialog'
+import { FilterFloatingButton } from '@/components/features/FilterFloatingButton'
 import {
     ChevronRight,
     Plus,
@@ -191,9 +193,10 @@ interface BoxGridProps {
     onCheckOut?: (sampleIds: string[], slotLabels: string[]) => void
     onEdit?: (sampleIds: string[], slotLabels: string[]) => void
     onSampleSelect?: (sample: SlotInfo['sample'] | null, slotPosition: string, batchGroupSlotIds: string[]) => void
+    filterMatchedSlotIds?: Set<string> // 筛选匹配的 slot IDs
 }
 
-function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGridProps) {
+function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMatchedSlotIds }: BoxGridProps) {
     const [showMixedError, setShowMixedError] = useState(false)
 
     // Convert slots to SlotInfo format
@@ -358,8 +361,8 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
     const slotMap = new Map<number, Slot>()
     slots.forEach(slot => slotMap.set(slot.position, slot))
 
-    // Get slot style based on status, selection, batch group, and drag state
-    const getSlotStyle = (slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean, isInDrag: boolean) => {
+    // Get slot style based on status, selection, batch group, drag state, and filter match
+    const getSlotStyle = (slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean, isInDrag: boolean, isFilterMatch: boolean) => {
         const isOccupied = slot?.status === 'OCCUPIED'
 
         // Drag selection preview (blue border)
@@ -376,6 +379,11 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
             return isOccupied
                 ? 'bg-yellow-100 border-yellow-500 ring-2 ring-yellow-500'
                 : 'bg-green-100 border-green-500 ring-2 ring-green-500'
+        }
+
+        // Filter match (purple) - highlight matched samples
+        if (isFilterMatch && isOccupied) {
+            return 'bg-blue-100 text-blue-900 border-blue-500 ring-2 ring-blue-400 hover:bg-blue-200'
         }
 
         return isOccupied
@@ -461,6 +469,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                 const isSlotSelected = slot ? isSelected(slot.id) : false
                                 const isBatchMember = slot ? batchGroupSlotIds.has(slot.id) : false
                                 const isInDrag = isInDragSelection(rowIndex, colIndex)
+                                const isFilterMatch = slot ? (filterMatchedSlotIds?.has(slot.id) ?? false) : false
 
                                 return (
                                     <Tooltip key={colIndex}>
@@ -483,7 +492,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                                     if (len <= 8) return 'text-[8px] leading-none'
                                                     return 'text-[7px] leading-none tracking-tight'
                                                 })()
-                                                    } ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag)}`}
+                                                    } ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag, isFilterMatch)}`}
                                             >
                                                 {isOccupied && slot?.sample?.name}
                                             </button>
@@ -532,6 +541,12 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                         <div className="w-3 h-3 rounded-sm bg-blue-50 border border-blue-500" />
                         <span>拖拽选中</span>
                     </div>
+                    {filterMatchedSlotIds && filterMatchedSlotIds.size > 0 && (
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-500" />
+                            <span className="text-blue-600">筛选匹配</span>
+                        </div>
+                    )}
                     <span className="pl-3 ml-1">
                         <kbd className="ml-2 px-1 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选
                         <kbd className="ml-2 px-1 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选
@@ -643,6 +658,94 @@ export default function InventoryPage() {
             setSelectedSlotPosition('')
             setBatchGroupCount(0)
         }
+    }, [])
+
+    // ============================================
+    // 筛选功能状态
+    // ============================================
+    const [filterDialogOpen, setFilterDialogOpen] = useState(false)
+    const [filterState, setFilterState] = useState<FilterState | null>(null)
+    const [filterResult, setFilterResult] = useState<FilterResult | null>(null)
+
+    // 当前盒子的筛选匹配 slot IDs
+    const currentBoxFilterMatchedSlotIds = useMemo(() => {
+        if (!filterResult || !selectedBox) return new Set<string>()
+
+        // 在筛选结果中找到当前盒子
+        for (const facility of filterResult.facilities) {
+            for (const rack of facility.racks) {
+                const box = rack.boxes.find(b => b.id === selectedBox.id)
+                if (box) {
+                    return new Set(box.matchedSlotIds)
+                }
+            }
+        }
+        return new Set<string>()
+    }, [filterResult, selectedBox])
+
+    // 筛选后的设施列表
+    const filteredFacilities = useMemo(() => {
+        if (!filterResult) return facilities
+        // 只显示包含匹配样本的设施
+        const matchedFacilityIds = new Set(filterResult.facilities.map(f => f.id))
+        return facilities.filter(f => matchedFacilityIds.has(f.id))
+    }, [facilities, filterResult])
+
+    // 筛选后的架子列表
+    const filteredRacks = useMemo(() => {
+        if (!filterResult || !selectedFacility) return racks
+        const facilityResult = filterResult.facilities.find(f => f.id === selectedFacility.id)
+        if (!facilityResult) return []
+        const matchedRackIds = new Set(facilityResult.racks.map(r => r.id))
+        return racks.filter(r => matchedRackIds.has(r.id))
+    }, [racks, filterResult, selectedFacility])
+
+    // 筛选后的盒子列表
+    const filteredBoxes = useMemo(() => {
+        if (!filterResult || !selectedFacility || !selectedRack) return boxes
+        const facilityResult = filterResult.facilities.find(f => f.id === selectedFacility.id)
+        if (!facilityResult) return []
+        const rackResult = facilityResult.racks.find(r => r.id === selectedRack.id)
+        if (!rackResult) return []
+        const matchedBoxIds = new Set(rackResult.boxes.map(b => b.id))
+        return boxes.filter(b => matchedBoxIds.has(b.id))
+    }, [boxes, filterResult, selectedFacility, selectedRack])
+
+    // 获取筛选匹配数（用于显示）
+    const getFilterMatchCount = useCallback((type: 'facility' | 'rack' | 'box', id: string) => {
+        if (!filterResult) return null
+
+        if (type === 'facility') {
+            const facility = filterResult.facilities.find(f => f.id === id)
+            return facility?.matchCount ?? null
+        }
+
+        if (type === 'rack' && selectedFacility) {
+            const facilityResult = filterResult.facilities.find(f => f.id === selectedFacility.id)
+            const rack = facilityResult?.racks.find(r => r.id === id)
+            return rack?.matchCount ?? null
+        }
+
+        if (type === 'box' && selectedFacility && selectedRack) {
+            const facilityResult = filterResult.facilities.find(f => f.id === selectedFacility.id)
+            const rackResult = facilityResult?.racks.find(r => r.id === selectedRack.id)
+            const box = rackResult?.boxes.find(b => b.id === id)
+            return box?.matchCount ?? null
+        }
+
+        return null
+    }, [filterResult, selectedFacility, selectedRack])
+
+    // 应用筛选
+    const handleFilterApply = useCallback((filter: FilterState, result: FilterResult) => {
+        setFilterState(filter)
+        setFilterResult(result)
+    }, [])
+
+    // 清除筛选
+    const handleFilterClear = useCallback(() => {
+        setFilterState(null)
+        setFilterResult(null)
     }, [])
 
     // 使用 ref 追踪之前的 libraryMode，检测是否是切换
@@ -975,38 +1078,66 @@ export default function InventoryPage() {
                                 </TabsList>
                             </CardHeader>
                             <CardContent className="pt-4">
+                                {/* Filter Active Indicator */}
+                                {filterResult && (
+                                    <div className="mb-3 px-3 py-2.5 bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200/60 rounded-lg text-sm flex items-center justify-between shadow-sm">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                            <span className="text-primary font-medium">筛选中</span>
+                                            <span className="text-blue-400">·</span>
+                                            <span className="text-blue-600">{filterResult.totalMatched} 个匹配</span>
+                                        </div>
+                                        <button
+                                            onClick={handleFilterClear}
+                                            className="px-2 py-0.5 text-xs text-blue-600 hover:text-white hover:bg-primary rounded transition-colors"
+                                        >
+                                            清除
+                                        </button>
+                                    </div>
+                                )}
+
                                 {/* Facility List */}
                                 <TabsContent value="facility" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
-                                    {facilities.length === 0 ? (
-                                        <div className="text-center py-8 text-sm text-muted-foreground">暂无细胞库</div>
+                                    {filteredFacilities.length === 0 ? (
+                                        <div className="text-center py-8 text-sm text-muted-foreground">
+                                            {filterResult ? '无匹配的细胞库' : '暂无细胞库'}
+                                        </div>
                                     ) : (
-                                        facilities.map((facility) => (
-                                            <div
-                                                key={facility.id}
-                                                role="button"
-                                                tabIndex={0}
-                                                onClick={() => handleFacilityClick(facility)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleFacilityClick(facility)}
-                                                className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedFacility?.id === facility.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="font-medium text-sm">{facility.name}</p>
-                                                        <p className={`text-xs ${selectedFacility?.id === facility.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                            {facility.type} | {facility.racks} 扇/提
-                                                        </p>
+                                        filteredFacilities.map((facility) => {
+                                            const filterMatchCount = getFilterMatchCount('facility', facility.id)
+                                            return (
+                                                <div
+                                                    key={facility.id}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => handleFacilityClick(facility)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleFacilityClick(facility)}
+                                                    className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedFacility?.id === facility.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                                                        } ${filterMatchCount !== null ? 'ring-2 ring-blue-300' : ''}`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="font-medium text-sm">{facility.name}</p>
+                                                            <p className={`text-xs ${selectedFacility?.id === facility.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                                {facility.type} | {facility.racks} 扇/提
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge
+                                                                variant={selectedFacility?.id === facility.id ? 'secondary' : 'outline'}
+                                                                className={filterMatchCount !== null ? 'bg-blue-100 text-blue-700 border-blue-300' : ''}
+                                                            >
+                                                                {filterMatchCount !== null ? filterMatchCount : facility.usedSlots}/{facility.totalSlots}
+                                                            </Badge>
+                                                            <ChevronRight className="h-4 w-4" />
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant={selectedFacility?.id === facility.id ? 'secondary' : 'outline'}>{facility.usedSlots}/{facility.totalSlots}</Badge>
-                                                        <ChevronRight className="h-4 w-4" />
-                                                    </div>
+                                                    {facility.racksDetail && (
+                                                        <ChildProgressBar items={facility.racksDetail} onItemClick={handleRackBarClick} />
+                                                    )}
                                                 </div>
-                                                {facility.racksDetail && (
-                                                    <ChildProgressBar items={facility.racksDetail} onItemClick={handleRackBarClick} />
-                                                )}
-                                            </div>
-                                        ))
+                                            )
+                                        })
                                     )}
                                 </TabsContent>
 
@@ -1015,36 +1146,46 @@ export default function InventoryPage() {
                                     <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
                                         {selectedFacility?.name}
                                     </div>
-                                    {racks.length === 0 ? (
-                                        <div className="text-center py-8 text-sm text-muted-foreground">暂无扇/提</div>
+                                    {filteredRacks.length === 0 ? (
+                                        <div className="text-center py-8 text-sm text-muted-foreground">
+                                            {filterResult ? '无匹配的扇/提' : '暂无扇/提'}
+                                        </div>
                                     ) : (
-                                        racks.map((rack) => (
-                                            <div
-                                                key={rack.id}
-                                                role="button"
-                                                tabIndex={0}
-                                                onClick={() => handleRackClick(rack)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleRackClick(rack)}
-                                                className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedRack?.id === rack.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="font-medium text-sm">{rack.name}</p>
-                                                        <p className={`text-xs ${selectedRack?.id === rack.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                            {rack.totalShelves} 层
-                                                        </p>
+                                        filteredRacks.map((rack) => {
+                                            const filterMatchCount = getFilterMatchCount('rack', rack.id)
+                                            return (
+                                                <div
+                                                    key={rack.id}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => handleRackClick(rack)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleRackClick(rack)}
+                                                    className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedRack?.id === rack.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                                                        } ${filterMatchCount !== null ? 'ring-2 ring-blue-300' : ''}`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="font-medium text-sm">{rack.name}</p>
+                                                            <p className={`text-xs ${selectedRack?.id === rack.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                                {rack.totalShelves} 层
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge
+                                                                variant={selectedRack?.id === rack.id ? 'secondary' : 'outline'}
+                                                                className={filterMatchCount !== null ? 'bg-blue-100 text-blue-700 border-blue-300' : ''}
+                                                            >
+                                                                {filterMatchCount !== null ? filterMatchCount : rack.used}/{rack.total}
+                                                            </Badge>
+                                                            <ChevronRight className="h-4 w-4" />
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant={selectedRack?.id === rack.id ? 'secondary' : 'outline'}>{rack.used}/{rack.total}</Badge>
-                                                        <ChevronRight className="h-4 w-4" />
-                                                    </div>
+                                                    {rack.shelves && (
+                                                        <ChildProgressBar items={rack.shelves} onItemClick={(shelf) => handleShelfBarClick(shelf, rack.id)} />
+                                                    )}
                                                 </div>
-                                                {rack.shelves && (
-                                                    <ChildProgressBar items={rack.shelves} onItemClick={(shelf) => handleShelfBarClick(shelf, rack.id)} />
-                                                )}
-                                            </div>
-                                        ))
+                                            )
+                                        })
                                     )}
                                 </TabsContent>
 
@@ -1053,30 +1194,38 @@ export default function InventoryPage() {
                                     <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
                                         {selectedFacility?.name} &gt; {selectedRack?.name}
                                     </div>
-                                    {boxes.length === 0 ? (
-                                        <div className="text-center py-8 text-sm text-muted-foreground">暂无盒子</div>
+                                    {filteredBoxes.length === 0 ? (
+                                        <div className="text-center py-8 text-sm text-muted-foreground">
+                                            {filterResult ? '无匹配的盒子' : '暂无盒子'}
+                                        </div>
                                     ) : (
-                                        boxes.map((box) => (
-                                            <button
-                                                key={box.id}
-                                                onClick={() => handleBoxClick(box)}
-                                                className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedBox?.id === box.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <span className="font-medium text-sm">{box.name}</span>
-                                                    <Badge variant={selectedBox?.id === box.id ? 'secondary' : 'outline'}>
-                                                        {box.occupied}/{box.total}
-                                                    </Badge>
-                                                </div>
-                                                <div className="mt-2 h-1.5 bg-muted/50 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full ${getOccupancyColor(Math.round(box.occupied / box.total * 100))}`}
-                                                        style={{ width: `${Math.round(box.occupied / box.total * 100)}%` }}
-                                                    />
-                                                </div>
-                                            </button>
-                                        ))
+                                        filteredBoxes.map((box) => {
+                                            const filterMatchCount = getFilterMatchCount('box', box.id)
+                                            return (
+                                                <button
+                                                    key={box.id}
+                                                    onClick={() => handleBoxClick(box)}
+                                                    className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedBox?.id === box.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                                                        } ${filterMatchCount !== null ? 'ring-2 ring-blue-300' : ''}`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-medium text-sm">{box.name}</span>
+                                                        <Badge
+                                                            variant={selectedBox?.id === box.id ? 'secondary' : 'outline'}
+                                                            className={filterMatchCount !== null ? 'bg-blue-100 text-blue-700 border-blue-300' : ''}
+                                                        >
+                                                            {filterMatchCount !== null ? filterMatchCount : box.occupied}/{box.total}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="mt-2 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full ${filterMatchCount !== null ? 'bg-primary' : getOccupancyColor(Math.round(box.occupied / box.total * 100))}`}
+                                                            style={{ width: `${Math.round((filterMatchCount !== null ? filterMatchCount : box.occupied) / box.total * 100)}%` }}
+                                                        />
+                                                    </div>
+                                                </button>
+                                            )
+                                        })
                                     )}
                                 </TabsContent>
                             </CardContent>
@@ -1111,6 +1260,7 @@ export default function InventoryPage() {
                                 onCheckOut={handleCheckOut}
                                 onEdit={handleEdit}
                                 onSampleSelect={handleSampleSelect}
+                                filterMatchedSlotIds={currentBoxFilterMatchedSlotIds}
                             />
                         </CardContent>
                     </Card>
@@ -1153,6 +1303,28 @@ export default function InventoryPage() {
                 boxRows={boxDetail?.rows}
                 boxCols={boxDetail?.columns}
                 onSuccess={handleDialogSuccess}
+            />
+
+            {/* Filter Floating Button */}
+            <FilterFloatingButton
+                isActive={filterState?.isActive ?? false}
+                matchCount={filterResult?.totalMatched}
+                onClick={() => setFilterDialogOpen(true)}
+                onClear={handleFilterClear}
+            />
+
+            {/* Filter Dialog */}
+            <SampleFilterDialog
+                open={filterDialogOpen}
+                onOpenChange={setFilterDialogOpen}
+                onApply={handleFilterApply}
+                onClear={handleFilterClear}
+                currentFilter={filterState ?? undefined}
+                libraryMode={libraryMode}
+                currentFacilityId={selectedFacility?.id}
+                currentFacilityName={selectedFacility?.name}
+                currentRackId={selectedRack?.id}
+                currentRackName={selectedRack?.name}
             />
         </div>
     )
