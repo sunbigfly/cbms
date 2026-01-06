@@ -253,16 +253,25 @@ echo ""
 read_input "是否立即开始安装依赖并构建项目? (y/n)" "y" START_INSTALL
 
 if [[ "$START_INSTALL" =~ ^[Yy]$ ]]; then
-    info "STEP 1/4: 安装项目依赖..."
+    info "STEP 1/5: 安装项目依赖..."
     pnpm install
     
-    info "STEP 2/4: 同步数据库结构..."
+    info "STEP 2/5: 同步数据库结构..."
     pnpm db:push
     
-    info "STEP 3/4: 初始化预设数据..."
+    info "STEP 3/5: 初始化预设数据..."
     pnpm db:seed
     
-    info "STEP 4/4: 构建生产版本..."
+    # 清理 Redis 缓存 (如果启用了 Redis)
+    if [[ "$ENABLE_REDIS" =~ ^[Yy]$ ]] && command -v redis-cli &> /dev/null; then
+        info "STEP 4/5: 清理 Redis 缓存..."
+        redis-cli -h "${REDIS_HOST:-localhost}" -p "${REDIS_PORT:-6379}" ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"} KEYS "cbms:*" | xargs -r redis-cli -h "${REDIS_HOST:-localhost}" -p "${REDIS_PORT:-6379}" ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"} DEL 2>/dev/null || warn "Redis 缓存清理跳过（可能未运行）"
+        success "Redis 缓存已清理"
+    else
+        info "STEP 4/5: 跳过 Redis 缓存清理 (未启用或未安装 redis-cli)"
+    fi
+    
+    info "STEP 5/5: 构建生产版本..."
     pnpm build
     
     echo ""

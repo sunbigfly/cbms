@@ -17,8 +17,7 @@ interface FacilityCapacity {
 interface MonthlyStats {
     create: number
     consume: number
-    move: number
-    destroy: number
+    edit: number
 }
 
 export default function ReportsPage() {
@@ -27,7 +26,7 @@ export default function ReportsPage() {
     const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
     const [loading, setLoading] = useState(true)
     const [facilities, setFacilities] = useState<FacilityCapacity[]>([])
-    const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ create: 0, consume: 0, move: 0, destroy: 0 })
+    const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ create: 0, consume: 0, edit: 0 })
 
     useEffect(() => {
         async function fetchData() {
@@ -62,8 +61,7 @@ export default function ReportsPage() {
                     setMonthlyStats({
                         create: thisMonthLogs.filter((l: { action: string }) => l.action === 'CREATE').length,
                         consume: thisMonthLogs.filter((l: { action: string }) => l.action === 'CONSUME').length,
-                        move: thisMonthLogs.filter((l: { action: string }) => l.action === 'MOVE').length,
-                        destroy: thisMonthLogs.filter((l: { action: string }) => l.action === 'DESTROY').length,
+                        edit: thisMonthLogs.filter((l: { action: string }) => l.action === 'UPDATE').length,
                     })
                 }
             } catch (error) {
@@ -234,7 +232,7 @@ export default function ReportsPage() {
                         <CardDescription>{currentMonth}操作统计</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="p-4 rounded-lg bg-primary/10">
                                 <p className="text-2xl font-bold text-primary">{monthlyStats.create}</p>
                                 <p className="text-sm text-muted-foreground">入库</p>
@@ -243,13 +241,9 @@ export default function ReportsPage() {
                                 <p className="text-2xl font-bold text-destructive">{monthlyStats.consume}</p>
                                 <p className="text-sm text-muted-foreground">出库</p>
                             </div>
-                            <div className="p-4 rounded-lg bg-secondary">
-                                <p className="text-2xl font-bold">{monthlyStats.move}</p>
-                                <p className="text-sm text-muted-foreground">移动</p>
-                            </div>
-                            <div className="p-4 rounded-lg bg-warning/10">
-                                <p className="text-2xl font-bold text-warning">{monthlyStats.destroy}</p>
-                                <p className="text-sm text-muted-foreground">销毁</p>
+                            <div className="p-4 rounded-lg bg-info/10">
+                                <p className="text-2xl font-bold text-info">{monthlyStats.edit}</p>
+                                <p className="text-sm text-muted-foreground">编辑</p>
                             </div>
                         </div>
                     </CardContent>
