@@ -1048,7 +1048,7 @@ export default function InventoryPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
             <div className="mb-6 flex items-center justify-between">
                 <Breadcrumbs />
                 <LibrarySwitch value={libraryMode} onChange={setLibraryMode} />

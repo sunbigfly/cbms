@@ -448,7 +448,7 @@ export default function SettingsPage() {
     // 员工和管理员都可以访问设置页面，但显示不同的 Tab
 
     return (
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
             <div className="mb-6">
                 <Breadcrumbs />
             </div>
