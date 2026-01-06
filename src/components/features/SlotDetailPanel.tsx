@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle, Beaker, Calendar, User, FlaskConical, Hash, Droplet, FlaskRound, TestTube2, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Beaker, Calendar, User, FlaskConical, Hash, Droplet, FlaskRound, TestTube2, ShieldCheck, Clock } from 'lucide-react'
 
 export interface SampleDetail {
     id: string
@@ -21,6 +21,7 @@ export interface SampleDetail {
     sterileCheck?: string
     slotId?: string
     slotPosition?: string
+    updatedAt?: string | Date
 }
 
 export interface SlotDetailPanelProps {
@@ -163,6 +164,23 @@ export function SlotDetailPanel({
                             <div>
                                 <p className="text-xs text-muted-foreground">负责人</p>
                                 <p className="font-medium">{sample.owner}</p>
+                            </div>
+                        </div>
+                    )}
+                    {sample.updatedAt && (
+                        <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                                <p className="text-xs text-muted-foreground">最后更新</p>
+                                <p className="font-medium">
+                                    {new Date(sample.updatedAt).toLocaleDateString('zh-CN', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </p>
                             </div>
                         </div>
                     )}

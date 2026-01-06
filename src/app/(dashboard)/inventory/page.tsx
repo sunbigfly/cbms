@@ -109,6 +109,7 @@ interface ExtendedSample {
     owner?: string
     notes?: string
     sterileCheck?: string
+    updatedAt?: string | Date
 }
 
 interface BoxDetail {
@@ -197,6 +198,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                 owner: (slot.sample as ExtendedSample).owner,
                 notes: (slot.sample as ExtendedSample).notes,
                 sterileCheck: (slot.sample as ExtendedSample).sterileCheck,
+                updatedAt: (slot.sample as ExtendedSample).updatedAt,
             } : null
         }))
     }, [box])
@@ -360,44 +362,49 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
             )}
 
             {/* Action Bar */}
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b">
-                <Button
-                    size="sm"
-                    variant={selectionType === 'empty' ? 'default' : 'outline'}
-                    disabled={selectionType !== 'empty'}
-                    onClick={handleCheckInClick}
-                >
-                    <Plus className="h-4 w-4" />
-                    入库 {selectionType === 'empty' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
-                </Button>
-                <Button
-                    size="sm"
-                    variant={selectionType === 'occupied' ? 'destructive' : 'outline'}
-                    disabled={selectionType !== 'occupied'}
-                    onClick={handleCheckOutClick}
-                >
-                    <LogOut className="h-4 w-4" />
-                    出库 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
-                </Button>
-                <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={selectionType !== 'occupied'}
-                    onClick={handleEditClick}
-                >
-                    <Pencil className="h-4 w-4" />
-                    编辑 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
-                </Button>
-
-                {selectedSlots.size > 0 && (
-                    <Button size="sm" variant="ghost" onClick={clearSelection}>
-                        清除选择
+            <div className="mb-4 pb-3 border-b space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                        size="sm"
+                        variant={selectionType === 'empty' ? 'default' : 'outline'}
+                        disabled={selectionType !== 'empty'}
+                        onClick={handleCheckInClick}
+                    >
+                        <Plus className="h-4 w-4" />
+                        入库 {selectionType === 'empty' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
                     </Button>
-                )}
+                    <Button
+                        size="sm"
+                        variant={selectionType === 'occupied' ? 'destructive' : 'outline'}
+                        disabled={selectionType !== 'occupied'}
+                        onClick={handleCheckOutClick}
+                    >
+                        <LogOut className="h-4 w-4" />
+                        出库 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={selectionType !== 'occupied'}
+                        onClick={handleEditClick}
+                    >
+                        <Pencil className="h-4 w-4" />
+                        编辑 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
+                    </Button>
 
-                <div className="ml-auto text-xs text-muted-foreground">
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选 |{' '}
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选 |{' '}
+                    {selectedSlots.size > 0 && (
+                        <Button size="sm" variant="ghost" onClick={clearSelection}>
+                            清除选择
+                        </Button>
+                    )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选
+                    </span>
                     <span className="text-blue-600">拖拽框选</span>
                 </div>
             </div>
@@ -787,17 +794,17 @@ export default function InventoryPage() {
                     <Card className="h-full">
                         <Tabs value={currentLevel} onValueChange={(v) => setCurrentLevel(v as NavigationLevel)}>
                             <CardHeader className="pb-0">
-                                <TabsList className="w-full">
-                                    <TabsTrigger value="facility" className="flex-1 gap-1">
-                                        <Building2 className="h-4 w-4" />
+                                <TabsList className="w-full grid grid-cols-3">
+                                    <TabsTrigger value="facility" className="text-xs px-2">
+                                        <Building2 className="h-3.5 w-3.5 mr-1" />
                                         细胞库
                                     </TabsTrigger>
-                                    <TabsTrigger value="rack" className="flex-1 gap-1" disabled={!selectedFacility}>
-                                        <LayoutGrid className="h-4 w-4" />
+                                    <TabsTrigger value="rack" className="text-xs px-2" disabled={!selectedFacility}>
+                                        <LayoutGrid className="h-3.5 w-3.5 mr-1" />
                                         扇/提
                                     </TabsTrigger>
-                                    <TabsTrigger value="box" className="flex-1 gap-1" disabled={!selectedRack}>
-                                        <Package className="h-4 w-4" />
+                                    <TabsTrigger value="box" className="text-xs px-2" disabled={!selectedRack}>
+                                        <Package className="h-3.5 w-3.5 mr-1" />
                                         盒子
                                     </TabsTrigger>
                                 </TabsList>

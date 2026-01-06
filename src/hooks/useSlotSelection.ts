@@ -22,6 +22,8 @@ export interface SlotInfo {
         media?: string
         owner?: string
         notes?: string
+        sterileCheck?: string
+        updatedAt?: string | Date
     } | null
 }
 

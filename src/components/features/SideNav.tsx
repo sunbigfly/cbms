@@ -94,7 +94,7 @@ export function SideNav() {
                 className={cn(
                     'sticky top-0 h-screen flex flex-col border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
                     mounted && 'transition-all duration-300',
-                    collapsed ? 'w-16' : 'w-56'
+                    collapsed ? 'w-16' : 'w-36'
                 )}
             >
                 {/* Logo */}
