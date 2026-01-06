@@ -595,9 +595,7 @@ export function BatchEditDialog({
                                         <Copy className="h-3 w-3 mr-1" />
                                         复制首行到所有行
                                     </Button>
-                                    <span className="text-xs text-muted-foreground">
-                                        共 {sampleIds.length} 个位置
-                                    </span>
+
                                 </div>
 
                                 {/* 卡片和预览 */}
@@ -743,9 +741,6 @@ export function BatchEditDialog({
                                         </Button>
                                         <span className="text-sm text-muted-foreground">
                                             {currentPage + 1} / {totalPages}
-                                            <span className="ml-2 text-xs">
-                                                (显示 {startIndex + 1}-{endIndex} / 共 {sampleIds.length})
-                                            </span>
                                         </span>
                                         <Button
                                             type="button"
