@@ -152,6 +152,14 @@ export default function LoginPage() {
             setError('请输入管理员密码')
             return
         }
+        if (!password || !/^\d{6}$/.test(password)) {
+            setError('新密码必须是6位数字')
+            return
+        }
+        if (password !== confirmPassword) {
+            setError('两次密码不一致')
+            return
+        }
 
         setLoading(true)
         setError('')
@@ -163,6 +171,7 @@ export default function LoginPage() {
                 body: JSON.stringify({
                     employeeId: employeeId.trim(),
                     adminPassword,
+                    newPassword: password, // Send the new password
                 }),
             })
 
@@ -176,6 +185,7 @@ export default function LoginPage() {
             setSuccess(data.message)
             setAdminPassword('')
             setPassword('')
+            setConfirmPassword('')
             setStep('login')
         } catch {
             setError('重置失败，请重试')
@@ -341,12 +351,34 @@ export default function LoginPage() {
                             <Alert>
                                 <AlertCircle className="h-4 w-4" />
                                 <AlertDescription>
-                                    如果您的工号被他人冒用，请输入管理员超级密码重置账户。密码将被重置为 123456。
+                                    如果您的工号被他人冒用，请输入管理员超级密码重置账户。
+                                    请设置一个新的6位数字密码。
                                 </AlertDescription>
                             </Alert>
                             <div className="space-y-2">
                                 <Label>工号</Label>
                                 <Input value={employeeId} disabled />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="resetNewPassword">新密码</Label>
+                                <Input
+                                    id="resetNewPassword"
+                                    type="password"
+                                    placeholder="请输入6位数字新密码"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="resetConfirmPassword">确认新密码</Label>
+                                <Input
+                                    id="resetConfirmPassword"
+                                    type="password"
+                                    placeholder="请再次输入新密码"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleReset()}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="adminPassword">管理员超级密码</Label>

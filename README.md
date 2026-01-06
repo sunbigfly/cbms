@@ -206,6 +206,7 @@ chmod +x deploy.sh
 | `ADMIN_EMPLOYEE_ID` | 初始管理员账号 | `admin` |
 | `ADMIN_PASSWORD` | 初始管理员密码 | （推荐手动设置） |
 | `ADMIN_EMAIL` | 初始管理员邮箱 | `admin@cbms.local` |
+| `ADMIN_SUPER_PASSWORD` | 重置密码用超级密钥 | （必需，由于无默认值，务必设置） |
 
 ### 可选配置
 
