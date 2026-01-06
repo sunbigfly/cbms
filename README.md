@@ -105,6 +105,14 @@ pnpm dev
 | `NEXTAUTH_URL` | 应用 URL | `http://localhost:3000` |
 | `NEXTAUTH_SECRET` | 认证密钥 (>=32字符) | 使用 `openssl rand -base64 32` 生成 |
 
+### 初始化配置 (可选)
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `ADMIN_EMPLOYEE_ID` | 初始管理员账号 | `admin` |
+| `ADMIN_PASSWORD` | 初始管理员密码 | `724287349` |
+| `ADMIN_EMAIL` | 初始管理员邮箱 | `admin@cbms.local` |
+
 ### 可选配置
 
 | 变量 | 说明 | 示例值 |

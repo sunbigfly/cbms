@@ -28,35 +28,33 @@ async function main() {
     console.log('🧹 Cleared all existing data')
 
     // 2. Create the single Admin user
-    const hashedPassword = await hash('724287349', 12)
+    const adminId = process.env.ADMIN_EMPLOYEE_ID || 'admin'
+    const adminPwdPlain = process.env.ADMIN_PASSWORD || '724287349'
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@cbms.local'
+
+    // Warn if using defaults
+    if (!process.env.ADMIN_PASSWORD) {
+        console.warn('⚠️  Using default admin password. Please set ADMIN_EMPLOYEE_ID/ADMIN_PASSWORD in .env')
+    }
+
+    const hashedPassword = await hash(adminPwdPlain, 12)
 
     const adminUser = await prisma.user.create({
         data: {
-            employeeId: 'admin',
-            email: 'admin@cbms.local',
+            employeeId: adminId,
+            email: adminEmail,
             name: '系统管理员',
             password: hashedPassword,
             role: 'ADMIN',
         },
     })
 
-    console.log('✅ Created admin user: 工号 admin, 密码 724287349')
+    console.log(`✅ Created admin user: 工号 ${adminId}, 密码 ${adminPwdPlain}`)
 
     // 3. Seed system presets
-    const presetData = [
-        // 细胞名称
-        { category: 'CELL_NAME', values: ['K562', 'NK92', 'MSC', 'Vero', '3T3', 'CHO', 'A549', 'HeLa', 'PBMC', '无'] },
-        // 细胞类型
-        { category: 'CELL_TYPE', values: ['人类慢性粒细胞白血病细胞系', '人类自然杀伤细胞系', '间充质干细胞', '非洲绿猴肾上皮细胞', '小鼠胚胎成纤维细胞系', '中国仓鼠卵巢细胞', '人类肺腺癌上皮细胞', '人类宫颈癌细胞系', '外周血单核细胞', '无'] },
-        // 冻存液
-        { category: 'CRYO_MEDIA', values: ['10%DMSO+90%FBS', '亘诺', '亘沅', '元亘珏', '元亘新', '亘益', '亘存', '亘优U', '亘朗', '亘惠', '科源S2', '科源S5', '科为', '科源', 'CS10', '无'] },
-        // 冻存密度
-        { category: 'CRYO_DENSITY', values: ['2x10^6', '5x10^6', '1x10^7', '2x10^7', '3.24x10^6', '4x10^6', '3.78x10^6', '无'] },
-        // 代数
-        { category: 'PASSAGE', values: [...Array.from({ length: 30 }, (_, i) => `P${i + 1}`), '无'] },
-        // 无菌验证
-        { category: 'STERILE_CHECK', values: ['是', '否'] },
-    ]
+    // Read from presets.json
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const presetData = require('./presets.json') as { category: string, values: string[] }[]
 
     for (const { category, values } of presetData) {
         for (let i = 0; i < values.length; i++) {
@@ -67,7 +65,7 @@ async function main() {
             })
         }
     }
-    console.log('✅ Created system presets')
+    console.log(`✅ Created system presets from presets.json (${presetData.length} categories)`)
 
     console.log('🎉 Seed completed successfully!')
 }
