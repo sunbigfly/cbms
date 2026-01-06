@@ -18,11 +18,14 @@ const CSV_HEADERS = [
     '数量',
     '单位',
     '浓度',
-    '活力',
+    '活性',
     '代次',
-    '保存液',
+    '冻存液',
+    '无菌验证',
     '负责人',
     '备注',
+    '库类型',
+    '库所有者',
     '细胞库名称',
     '扇/提代码',
     '层名称',
@@ -39,11 +42,14 @@ const FIELD_MAP = {
     '数量': 'quantity',
     '单位': 'unit',
     '浓度': 'concentration',
-    '活力': 'viability',
+    '活性': 'viability',
     '代次': 'passage',
-    '保存液': 'media',
+    '冻存液': 'media',
+    '无菌验证': 'sterileCheck',
     '负责人': 'owner',
     '备注': 'notes',
+    '库类型': 'libraryType',
+    '库所有者': 'libraryOwner',
     '细胞库名称': 'facilityName',
     '扇/提代码': 'rackCode',
     '层名称': 'shelfName',
@@ -62,8 +68,11 @@ export interface ExportedSample {
     viability: number
     passage: string
     media: string | null
+    sterileCheck: string | null
     owner: string
     notes: string | null
+    libraryType: string
+    libraryOwner: string | null
     facilityName: string
     rackCode: string
     shelfName: string
@@ -82,8 +91,11 @@ export interface ImportRow {
     viability: number
     passage: string
     media?: string
+    sterileCheck?: string
     owner: string
     notes?: string
+    libraryType: string
+    libraryOwner?: string
     facilityName: string
     rackCode: string
     shelfName: string
@@ -103,7 +115,10 @@ export interface ImportResult {
     imported: number
     errors: ValidationError[]
     skipped: number
+    overwritten: number
 }
+
+export type ImportMode = 'skip' | 'overwrite'
 
 // ============================================
 // Export Functions
@@ -123,7 +138,11 @@ export async function getAllSamplesForExport(): Promise<ExportedSample[]> {
                                 include: {
                                     rack: {
                                         include: {
-                                            facility: true,
+                                            facility: {
+                                                include: {
+                                                    owner: true,
+                                                },
+                                            },
                                         },
                                     },
                                 },
@@ -138,25 +157,31 @@ export async function getAllSamplesForExport(): Promise<ExportedSample[]> {
         ],
     })
 
-    return samples.map((sample) => ({
-        name: sample.name,
-        type: sample.type,
-        batchNo: sample.batchNo,
-        quantity: sample.quantity,
-        unit: sample.unit,
-        concentration: sample.concentration,
-        viability: sample.viability,
-        passage: sample.passage,
-        media: sample.media,
-        owner: sample.owner,
-        notes: sample.notes,
-        facilityName: sample.slot.box.shelf.rack.facility.name,
-        rackCode: sample.slot.box.shelf.rack.code,
-        shelfName: sample.slot.box.shelf.name,
-        boxName: sample.slot.box.name,
-        row: sample.slot.rowLabel,
-        col: sample.slot.colLabel,
-    }))
+    return samples.map((sample) => {
+        const facility = sample.slot.box.shelf.rack.facility
+        return {
+            name: sample.name,
+            type: sample.type,
+            batchNo: sample.batchNo,
+            quantity: sample.quantity,
+            unit: sample.unit,
+            concentration: sample.concentration,
+            viability: sample.viability,
+            passage: sample.passage,
+            media: sample.media,
+            sterileCheck: sample.sterileCheck,
+            owner: sample.owner,
+            notes: sample.notes,
+            libraryType: facility.isPrivate ? '私有库' : '公共库',
+            libraryOwner: facility.owner?.name ?? null,
+            facilityName: facility.name,
+            rackCode: sample.slot.box.shelf.rack.code,
+            shelfName: sample.slot.box.shelf.name,
+            boxName: sample.slot.box.name,
+            row: sample.slot.rowLabel,
+            col: sample.slot.colLabel,
+        }
+    })
 }
 
 /**
@@ -183,8 +208,11 @@ export function generateCSVContent(samples: ExportedSample[]): string {
             sample.viability.toString(),
             escapeCSVField(sample.passage),
             escapeCSVField(sample.media ?? ''),
+            escapeCSVField(sample.sterileCheck ?? ''),
             escapeCSVField(sample.owner),
             escapeCSVField(sample.notes ?? ''),
+            escapeCSVField(sample.libraryType),
+            escapeCSVField(sample.libraryOwner ?? ''),
             escapeCSVField(sample.facilityName),
             escapeCSVField(sample.rackCode),
             escapeCSVField(sample.shelfName),
@@ -314,7 +342,7 @@ export async function validateCSVData(
         }
 
         // Required field validation
-        const requiredFields = ['样本名称', '细胞类型', '数量', '单位', '浓度', '活力', '代次', '负责人', '细胞库名称', '扇/提代码', '层名称', '盒子名称', '行', '列']
+        const requiredFields = ['样本名称', '细胞类型', '数量', '单位', '浓度', '活性', '代次', '负责人', '库类型', '细胞库名称', '扇/提代码', '层名称', '盒子名称', '行', '列']
 
         for (const field of requiredFields) {
             if (!getValue(field)) {
@@ -328,9 +356,15 @@ export async function validateCSVData(
             errors.push({ row: rowNum, field: '数量', message: '数量必须是正数' })
         }
 
-        const viability = parseFloat(getValue('活力'))
+        const viability = parseFloat(getValue('活性'))
         if (isNaN(viability) || viability < 0 || viability > 1) {
-            errors.push({ row: rowNum, field: '活力', message: '活力必须在 0-1 之间' })
+            errors.push({ row: rowNum, field: '活性', message: '活性必须在 0-1 之间' })
+        }
+
+        // Library type validation
+        const libraryType = getValue('库类型')
+        if (libraryType && !['公共库', '私有库'].includes(libraryType)) {
+            errors.push({ row: rowNum, field: '库类型', message: '库类型必须是 "公共库" 或 "私有库"' })
         }
 
         // Only add data if no errors for this row
@@ -344,9 +378,12 @@ export async function validateCSVData(
                 concentration: getValue('浓度'),
                 viability,
                 passage: getValue('代次'),
-                media: getValue('保存液') || undefined,
+                media: getValue('冻存液') || undefined,
+                sterileCheck: getValue('无菌验证') || undefined,
                 owner: getValue('负责人'),
                 notes: getValue('备注') || undefined,
+                libraryType: getValue('库类型'),
+                libraryOwner: getValue('库所有者') || undefined,
                 facilityName: getValue('细胞库名称'),
                 rackCode: getValue('扇/提代码'),
                 shelfName: getValue('层名称'),
@@ -371,6 +408,7 @@ export async function checkSlotCollisions(
     for (let i = 0; i < data.length; i++) {
         const item = data[i]
         const rowNum = i + 2 // Account for header row
+        const isPrivate = item.libraryType === '私有库'
 
         // Find the slot
         const slot = await prisma.slot.findFirst({
@@ -385,6 +423,7 @@ export async function checkSlotCollisions(
                             code: item.rackCode,
                             facility: {
                                 name: item.facilityName,
+                                isPrivate: isPrivate,
                             },
                         },
                     },
@@ -399,7 +438,7 @@ export async function checkSlotCollisions(
             errors.push({
                 row: rowNum,
                 field: '位置',
-                message: `未找到位置: ${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
+                message: `未找到位置: ${item.libraryType} > ${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
             })
         } else if (slot.status === SLOT_STATUS.OCCUPIED || slot.sample) {
             errors.push({
@@ -414,27 +453,30 @@ export async function checkSlotCollisions(
 }
 
 /**
- * Batch import samples
+ * Batch import samples with conflict handling
+ * @param mode - 'skip' to skip conflicting slots, 'overwrite' to replace existing samples
  */
 export async function batchImportSamples(
     data: ImportRow[],
-    userId: string
+    userId: string,
+    mode: ImportMode = 'skip'
 ): Promise<ImportResult> {
     const errors: ValidationError[] = []
     let imported = 0
     let skipped = 0
+    let overwritten = 0
 
     for (let i = 0; i < data.length; i++) {
         const item = data[i]
         const rowNum = i + 2
+        const isPrivate = item.libraryType === '私有库'
 
         try {
-            // Find the slot
+            // Find the slot (regardless of status)
             const slot = await prisma.slot.findFirst({
                 where: {
                     rowLabel: item.row,
                     colLabel: item.col,
-                    status: SLOT_STATUS.EMPTY,
                     box: {
                         name: item.boxName,
                         shelf: {
@@ -443,10 +485,14 @@ export async function batchImportSamples(
                                 code: item.rackCode,
                                 facility: {
                                     name: item.facilityName,
+                                    isPrivate: isPrivate,
                                 },
                             },
                         },
                     },
+                },
+                include: {
+                    sample: true,
                 },
             })
 
@@ -454,15 +500,54 @@ export async function batchImportSamples(
                 errors.push({
                     row: rowNum,
                     field: '位置',
-                    message: `未找到空槽位: ${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
+                    message: `未找到位置: ${item.libraryType} > ${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
                 })
                 skipped++
                 continue
             }
 
+            // Check if slot is occupied
+            const isOccupied = slot.status === SLOT_STATUS.OCCUPIED || slot.sample
+
+            if (isOccupied) {
+                if (mode === 'skip') {
+                    // In skip mode, just skip this slot
+                    skipped++
+                    continue
+                }
+                // In overwrite mode, we'll delete existing sample first
+            }
+
             // Create sample in transaction
             await prisma.$transaction(async (tx) => {
-                // Create sample
+                // If overwriting, delete existing sample first
+                if (isOccupied && mode === 'overwrite' && slot.sample) {
+                    const oldSampleName = slot.sample.name
+
+                    // Create audit log for deletion
+                    await tx.auditLog.create({
+                        data: {
+                            action: 'DELETE',
+                            userId,
+                            sampleId: slot.sample.id,
+                            description: `通过 CSV 导入覆盖删除样本 ${oldSampleName} 在 ${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
+                            previousData: {
+                                name: slot.sample.name,
+                                type: slot.sample.type,
+                                location: `${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
+                            },
+                        },
+                    })
+
+                    // Delete the existing sample
+                    await tx.sample.delete({
+                        where: { id: slot.sample.id },
+                    })
+
+                    overwritten++
+                }
+
+                // Create new sample
                 const sample = await tx.sample.create({
                     data: {
                         name: item.name,
@@ -474,6 +559,7 @@ export async function batchImportSamples(
                         viability: item.viability,
                         passage: item.passage,
                         media: item.media,
+                        sterileCheck: item.sterileCheck,
                         owner: item.owner,
                         notes: item.notes,
                         slotId: slot.id,
@@ -486,13 +572,13 @@ export async function batchImportSamples(
                     data: { status: SLOT_STATUS.OCCUPIED },
                 })
 
-                // Create audit log
+                // Create audit log for creation
                 await tx.auditLog.create({
                     data: {
                         action: 'CREATE',
                         userId,
                         sampleId: sample.id,
-                        description: `通过 CSV 导入创建样本 ${sample.name} 在 ${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
+                        description: `通过 CSV 导入${isOccupied && mode === 'overwrite' ? '覆盖' : '创建'}样本 ${sample.name} 在 ${item.facilityName} > ${item.rackCode} > ${item.shelfName} > ${item.boxName} > ${item.row}${item.col}`,
                         newData: {
                             name: sample.name,
                             type: sample.type,
@@ -518,5 +604,7 @@ export async function batchImportSamples(
         imported,
         errors,
         skipped,
+        overwritten,
     }
 }
+

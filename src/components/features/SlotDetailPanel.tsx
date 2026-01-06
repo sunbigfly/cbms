@@ -69,7 +69,7 @@ export function SlotDetailPanel({
                     )}
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 text-[80%]">
                 {/* Sample Name & Type */}
                 <div>
                     <h3 className="font-semibold text-lg">{sample.name}</h3>
@@ -174,11 +174,13 @@ export function SlotDetailPanel({
                                 <span>更新时间</span>
                             </div>
                             <span className="font-medium">
-                                {new Date(sample.updatedAt).toLocaleDateString('zh-CN', {
+                                {new Date(sample.updatedAt).toLocaleString('zh-CN', {
+                                    year: 'numeric',
                                     month: '2-digit',
                                     day: '2-digit',
                                     hour: '2-digit',
-                                    minute: '2-digit'
+                                    minute: '2-digit',
+                                    second: '2-digit'
                                 })}
                             </span>
                         </div>
