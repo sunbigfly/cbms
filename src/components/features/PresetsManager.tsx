@@ -84,7 +84,17 @@ export function PresetsManager() {
     // 获取当前分类的预设
     const currentPresets = presets
         .filter(p => p.category === activeCategory)
-        .sort((a, b) => a.order - b.order)
+        .sort((a, b) => {
+            const orderDiff = a.order - b.order
+            if (orderDiff !== 0) return orderDiff
+
+            // 如果顺序相同（比如都为0），通过自然排序处理代数等数字混合字符串
+            if (activeCategory === 'PASSAGE') {
+                return a.value.localeCompare(b.value, undefined, { numeric: true, sensitivity: 'base' })
+            }
+
+            return 0 // 保持原有顺序（通常是API返回的文件名排序）
+        })
 
     // 添加预设
     const handleAddPreset = async () => {

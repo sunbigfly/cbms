@@ -27,37 +27,50 @@ interface EditableSelectProps {
 function EditableSelect({ value, onChange, options, placeholder }: EditableSelectProps) {
     const [open, setOpen] = useState(false)
     const [inputValue, setInputValue] = useState(value)
+    const [isFiltering, setIsFiltering] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         setInputValue(value)
+        setIsFiltering(false)
     }, [value])
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setOpen(false)
+                setIsFiltering(false)
             }
         }
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
-    const filteredOptions = options.filter(opt =>
-        opt.toLowerCase().includes(inputValue.toLowerCase())
-    )
+    const filteredOptions = isFiltering
+        ? options.filter(opt => opt.toLowerCase().includes(inputValue.toLowerCase()))
+        : options
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value
         setInputValue(newValue)
         onChange(newValue)
         setOpen(true)
+        setIsFiltering(true)
     }
 
     const handleSelect = (option: string) => {
         setInputValue(option)
         onChange(option)
         setOpen(false)
+        setIsFiltering(false)
+    }
+
+    const toggleOpen = () => {
+        const nextOpen = !open
+        setOpen(nextOpen)
+        if (nextOpen) {
+            setIsFiltering(false)
+        }
     }
 
     return (
@@ -72,7 +85,7 @@ function EditableSelect({ value, onChange, options, placeholder }: EditableSelec
                 />
                 <ChevronDown
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 cursor-pointer"
-                    onClick={() => setOpen(!open)}
+                    onClick={toggleOpen}
                 />
             </div>
             {open && (
@@ -118,6 +131,13 @@ function usePresets() {
                     grouped[preset.category].push(preset.value)
                 }
                 setPresets(grouped)
+
+                // 对代数进行自然排序 (P1, P2, ... P10, ...)
+                if (grouped['PASSAGE']) {
+                    grouped['PASSAGE'].sort((a, b) =>
+                        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+                    )
+                }
             }
         } catch (error) {
             console.error('Failed to fetch presets:', error)
