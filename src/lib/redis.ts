@@ -7,28 +7,39 @@ const globalForRedis = globalThis as unknown as {
     redis: Redis | undefined
 }
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+const redisUrl = process.env.REDIS_URL
 
-export const redis = globalForRedis.redis ?? new Redis(redisUrl, {
-    maxRetriesPerRequest: 3,
-    retryStrategy(times) {
-        const delay = Math.min(times * 50, 2000)
-        return delay
-    },
-    lazyConnect: true, // 延迟连接，只在首次使用时连接
-})
+// Redis is optional - warn if not configured
+if (!redisUrl) {
+    console.warn('[Redis] REDIS_URL not configured - running without cache')
+}
+
+// Only create Redis client if URL is configured
+export const redis = redisUrl
+    ? (globalForRedis.redis ?? new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        retryStrategy(times) {
+            const delay = Math.min(times * 50, 2000)
+            return delay
+        },
+        lazyConnect: true, // 延迟连接，只在首次使用时连接
+    }))
+    : null
 
 // 连接错误处理
-redis.on('error', (err) => {
-    console.error('Redis connection error:', err.message)
-})
+if (redis) {
+    redis.on('error', (err) => {
+        console.error('Redis connection error:', err.message)
+    })
 
-redis.on('connect', () => {
-    console.log('Redis connected successfully')
-})
+    redis.on('connect', () => {
+        console.log('Redis connected successfully')
+    })
 
-if (process.env.NODE_ENV !== 'production') {
-    globalForRedis.redis = redis
+    if (process.env.NODE_ENV !== 'production') {
+        globalForRedis.redis = redis
+    }
 }
 
 export default redis
+

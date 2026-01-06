@@ -1,5 +1,6 @@
 // Cache Utility Module
 // Provides caching abstraction with Redis backend
+// Gracefully degrades to no-op when Redis is not configured
 
 import redis from './redis'
 
@@ -36,6 +37,7 @@ export const CACHE_TTL = {
  * 获取缓存值
  */
 export async function cacheGet<T>(key: string): Promise<T | null> {
+    if (!redis) return null
     try {
         const data = await redis.get(key)
         if (!data) return null
@@ -50,6 +52,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
  * 设置缓存值
  */
 export async function cacheSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+    if (!redis) return
     try {
         await redis.setex(key, ttlSeconds, JSON.stringify(value))
     } catch (error) {
@@ -61,6 +64,7 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
  * 删除缓存
  */
 export async function cacheDel(key: string): Promise<void> {
+    if (!redis) return
     try {
         await redis.del(key)
     } catch (error) {
@@ -72,6 +76,7 @@ export async function cacheDel(key: string): Promise<void> {
  * 按模式删除缓存 (使用 SCAN 避免阻塞)
  */
 export async function cacheInvalidatePattern(pattern: string): Promise<void> {
+    if (!redis) return
     try {
         let cursor = '0'
         do {
@@ -89,12 +94,18 @@ export async function cacheInvalidatePattern(pattern: string): Promise<void> {
 /**
  * 获取或设置缓存 (缓存穿透保护)
  * 如果缓存不存在，执行 fn 获取数据并缓存
+ * 当 Redis 未配置时，直接执行 fn 返回结果
  */
 export async function cacheGetOrSet<T>(
     key: string,
     fn: () => Promise<T>,
     ttlSeconds: number
 ): Promise<T> {
+    // Redis 未配置时直接执行查询
+    if (!redis) {
+        return fn()
+    }
+
     // 先尝试从缓存获取
     const cached = await cacheGet<T>(key)
     if (cached !== null) {
@@ -149,3 +160,4 @@ export function getSearchCacheKey(query: string): string {
     const hash = query.toLowerCase().replace(/\s+/g, '_')
     return `${CACHE_KEYS.SEARCH}${hash}`
 }
+
