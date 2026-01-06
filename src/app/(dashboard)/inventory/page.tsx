@@ -1113,7 +1113,7 @@ export default function InventoryPage() {
                                                     onClick={() => handleFacilityClick(facility)}
                                                     onKeyDown={(e) => e.key === 'Enter' && handleFacilityClick(facility)}
                                                     className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedFacility?.id === facility.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                        } ${filterMatchCount !== null ? 'ring-2 ring-blue-300' : ''}`}
+                                                        }`}
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <div>
@@ -1161,7 +1161,7 @@ export default function InventoryPage() {
                                                     onClick={() => handleRackClick(rack)}
                                                     onKeyDown={(e) => e.key === 'Enter' && handleRackClick(rack)}
                                                     className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedRack?.id === rack.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                        } ${filterMatchCount !== null ? 'ring-2 ring-blue-300' : ''}`}
+                                                        }`}
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <div>
@@ -1206,7 +1206,7 @@ export default function InventoryPage() {
                                                     key={box.id}
                                                     onClick={() => handleBoxClick(box)}
                                                     className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedBox?.id === box.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                        } ${filterMatchCount !== null ? 'ring-2 ring-blue-300' : ''}`}
+                                                        }`}
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-medium text-sm">{box.name}</span>
@@ -1217,9 +1217,9 @@ export default function InventoryPage() {
                                                             {filterMatchCount !== null ? filterMatchCount : box.occupied}/{box.total}
                                                         </Badge>
                                                     </div>
-                                                    <div className="mt-2 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                                                    <div className={`mt-2 h-1.5 rounded-full overflow-hidden ${selectedBox?.id === box.id ? 'bg-primary-foreground/30' : 'bg-muted/50'}`}>
                                                         <div
-                                                            className={`h-full rounded-full ${filterMatchCount !== null ? 'bg-primary' : getOccupancyColor(Math.round(box.occupied / box.total * 100))}`}
+                                                            className={`h-full rounded-full ${getOccupancyColor(Math.round((filterMatchCount !== null ? filterMatchCount : box.occupied) / box.total * 100))}`}
                                                             style={{ width: `${Math.round((filterMatchCount !== null ? filterMatchCount : box.occupied) / box.total * 100)}%` }}
                                                         />
                                                     </div>

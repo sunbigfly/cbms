@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import {
     Search,
     X,
+    Check,
     ChevronDown,
     ChevronUp,
     Calendar,
@@ -99,6 +101,100 @@ const FIELD_CONFIG = [
 ]
 
 // ============================================
+// Helper Components
+// ============================================
+
+const MultiSelect = ({
+    options,
+    selected = [],
+    onChange,
+    placeholder = "选择..."
+}: {
+    options: string[],
+    selected?: string[],
+    onChange: (values: string[]) => void,
+    placeholder?: string
+}) => {
+    const [search, setSearch] = useState('')
+    const [open, setOpen] = useState(false)
+    const filteredOptions = options.filter(opt =>
+        opt?.toLowerCase().includes(search.toLowerCase())
+    )
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <div
+                    className="w-full min-h-10 border rounded-md px-3 py-2 flex flex-wrap gap-1 cursor-text bg-background hover:bg-accent/20 transition-colors"
+                >
+                    {selected.length === 0 && (
+                        <span className="text-sm text-muted-foreground self-center">{placeholder}</span>
+                    )}
+                    {selected.map(val => (
+                        <Badge key={val} variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
+                            {val}
+                            <button
+                                className="ml-1 hover:text-red-500"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onChange(selected.filter(v => v !== val))
+                                }}
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0" align="start">
+                <div className="flex flex-col max-h-[300px]">
+                    <div className="flex items-center border-b px-3">
+                        <Search className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <Input
+                            placeholder="搜索选项..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="border-0 focus-visible:ring-0 shadow-none h-10"
+                        />
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-1">
+                        {filteredOptions.length === 0 ? (
+                            <p className="text-sm text-center py-6 text-muted-foreground">没有找到匹配项</p>
+                        ) : (
+                            <div className="space-y-0.5">
+                                {filteredOptions.map(opt => (
+                                    <div
+                                        key={opt}
+                                        className={cn(
+                                            "flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm cursor-pointer hover:bg-accent",
+                                            selected.includes(opt) && "bg-accent"
+                                        )}
+                                        onClick={() => {
+                                            const newSelected = selected.includes(opt)
+                                                ? selected.filter(s => s !== opt)
+                                                : [...selected, opt]
+                                            onChange(newSelected)
+                                        }}
+                                    >
+                                        <div className={cn(
+                                            "h-4 w-4 border rounded-sm flex items-center justify-center",
+                                            selected.includes(opt) ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground"
+                                        )}>
+                                            {selected.includes(opt) && <Check className="h-3 w-3" />}
+                                        </div>
+                                        <span>{opt}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </PopoverContent>
+        </Popover>
+    )
+}
+
+// ============================================
 // Component
 // ============================================
 
@@ -117,7 +213,6 @@ export function SampleFilterDialog({
     // 状态
     const [scope, setScope] = useState<'all' | 'facility' | 'rack'>('all')
     const [conditions, setConditions] = useState<FilterCondition[]>([])
-    const [expandedFields, setExpandedFields] = useState<Set<string>>(new Set())
     const [uniqueValues, setUniqueValues] = useState<Record<string, string[]>>({})
     const [loading, setLoading] = useState(false)
     const [filtering, setFiltering] = useState(false)
@@ -129,6 +224,7 @@ export function SampleFilterDialog({
             const params = new URLSearchParams({
                 libraryMode,
                 scope,
+                conditions: JSON.stringify(conditions), // 传递当前筛选条件以获取级联结果
                 ...(scope === 'facility' && currentFacilityId ? { scopeId: currentFacilityId } : {}),
                 ...(scope === 'rack' && currentRackId ? { scopeId: currentRackId } : {}),
             })
@@ -142,19 +238,22 @@ export function SampleFilterDialog({
         } finally {
             setLoading(false)
         }
-    }, [libraryMode, scope, currentFacilityId, currentRackId])
+    }, [libraryMode, scope, currentFacilityId, currentRackId, conditions]) // 添加 conditions 依赖
 
-    // 初始化
+    // 初始化：当对话框打开时，重置为传入的筛选条件
+    useEffect(() => {
+        if (open && currentFilter) {
+            setScope(currentFilter.scope)
+            setConditions(currentFilter.conditions)
+        }
+    }, [open]) // 仅在打开时执行初始化
+
+    // 当依赖变化时（如筛选条件变化），自动加载唯一值
     useEffect(() => {
         if (open) {
             loadUniqueValues()
-            if (currentFilter) {
-                setScope(currentFilter.scope)
-                setConditions(currentFilter.conditions)
-                setExpandedFields(new Set(currentFilter.conditions.map(c => c.field)))
-            }
         }
-    }, [open, loadUniqueValues, currentFilter])
+    }, [open, loadUniqueValues])
 
     // 当 scope 变化时重新加载唯一值
     useEffect(() => {
@@ -162,19 +261,6 @@ export function SampleFilterDialog({
             loadUniqueValues()
         }
     }, [scope, open, loadUniqueValues])
-
-    // 切换字段展开/折叠
-    const toggleField = (field: string) => {
-        const newExpanded = new Set(expandedFields)
-        if (newExpanded.has(field)) {
-            newExpanded.delete(field)
-            // 移除该字段的条件
-            setConditions(prev => prev.filter(c => c.field !== field))
-        } else {
-            newExpanded.add(field)
-        }
-        setExpandedFields(newExpanded)
-    }
 
     // 更新条件
     const updateCondition = (field: string, updates: Partial<FilterCondition>) => {
@@ -193,6 +279,7 @@ export function SampleFilterDialog({
             }
         })
     }
+
 
     // 获取条件
     const getCondition = (field: string): FilterCondition | undefined => {
@@ -249,7 +336,6 @@ export function SampleFilterDialog({
     // 清除所有
     const handleClear = () => {
         setConditions([])
-        setExpandedFields(new Set())
         onClear()
     }
 
@@ -282,27 +368,12 @@ export function SampleFilterDialog({
                 </div>
 
                 {mode === 'exact' ? (
-                    <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                        {options.map(opt => (
-                            <Badge
-                                key={opt}
-                                variant={condition?.values?.includes(opt) ? 'default' : 'outline'}
-                                className="cursor-pointer text-xs"
-                                onClick={() => {
-                                    const current = condition?.values || []
-                                    const newValues = current.includes(opt)
-                                        ? current.filter(v => v !== opt)
-                                        : [...current, opt]
-                                    updateCondition(field, { values: newValues })
-                                }}
-                            >
-                                {opt}
-                            </Badge>
-                        ))}
-                        {options.length === 0 && (
-                            <span className="text-xs text-muted-foreground">无可用选项</span>
-                        )}
-                    </div>
+                    <MultiSelect
+                        options={options}
+                        selected={condition?.values}
+                        onChange={(values) => updateCondition(field, { values })}
+                        placeholder="选择或搜索值..."
+                    />
                 ) : (
                     <div className="space-y-2">
                         <Input
@@ -422,24 +493,12 @@ export function SampleFilterDialog({
                 </div>
 
                 {mode === 'exact' ? (
-                    <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                        {options.map(opt => (
-                            <Badge
-                                key={opt}
-                                variant={condition?.values?.includes(opt) ? 'default' : 'outline'}
-                                className="cursor-pointer text-xs"
-                                onClick={() => {
-                                    const current = condition?.values || []
-                                    const newValues = current.includes(opt)
-                                        ? current.filter(v => v !== opt)
-                                        : [...current, opt]
-                                    updateCondition(field, { values: newValues })
-                                }}
-                            >
-                                {opt}
-                            </Badge>
-                        ))}
-                    </div>
+                    <MultiSelect
+                        options={options}
+                        selected={condition?.values}
+                        onChange={(values) => updateCondition(field, { values })}
+                        placeholder="选择或搜索代次..."
+                    />
                 ) : (
                     <div className="space-y-2">
                         <div className="flex gap-2">
@@ -581,82 +640,59 @@ export function SampleFilterDialog({
     // 渲染字段筛选区
     const renderFieldFilter = (config: typeof FIELD_CONFIG[number]) => {
         const { field, type } = config
-        const isExpanded = expandedFields.has(field)
         const condition = getCondition(field)
-        const hasCondition = condition && (
-            (condition.values?.length ?? 0) > 0 ||
-            condition.pattern ||
-            condition.min !== undefined ||
-            condition.max !== undefined ||
-            condition.onlyEmpty
-        )
 
         return (
-            <div key={field} className="border rounded-lg overflow-hidden">
-                {/* 字段头部 */}
-                <button
-                    onClick={() => toggleField(field)}
-                    className={cn(
-                        "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors",
-                        isExpanded && "bg-muted/30"
-                    )}
-                >
-                    <div className="flex items-center gap-2">
+            <div key={field} className="grid grid-cols-[120px_1fr] gap-4 items-start py-4 border-b last:border-0">
+                {/* 左侧：标签 */}
+                <div className="flex flex-col gap-1 pt-1">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                         <config.icon className="h-4 w-4 text-muted-foreground" />
                         <span>{config.label}</span>
-                        {hasCondition && (
-                            <Badge variant="secondary" className="text-xs">
-                                已设置
-                            </Badge>
-                        )}
-                        {!config.required && (
-                            <span className="text-xs text-muted-foreground">(可空)</span>
-                        )}
                     </div>
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-
-                {/* 展开内容 */}
-                {isExpanded && (
-                    <div className="px-3 py-3 border-t bg-muted/10 space-y-3">
-                        {/* 空值筛选（仅非必填字段） */}
-                        {!config.required && (
-                            <div className="flex items-center gap-4 pb-2 border-b">
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id={`${field}-only-empty`}
-                                        checked={condition?.onlyEmpty || false}
-                                        onCheckedChange={checked => updateCondition(field, {
-                                            onlyEmpty: !!checked,
-                                            includeEmpty: false
-                                        })}
-                                    />
-                                    <Label htmlFor={`${field}-only-empty`} className="text-xs">仅显示空值</Label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id={`${field}-include-empty`}
-                                        checked={condition?.includeEmpty || false}
-                                        disabled={condition?.onlyEmpty}
-                                        onCheckedChange={checked => updateCondition(field, { includeEmpty: !!checked })}
-                                    />
-                                    <Label htmlFor={`${field}-include-empty`} className="text-xs">包含空值</Label>
-                                </div>
+                    {!config.required && (
+                        <div className="flex flex-col gap-1.5 mt-2 pl-6">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id={`${field}-only-empty`}
+                                    checked={condition?.onlyEmpty || false}
+                                    onCheckedChange={checked => updateCondition(field, {
+                                        onlyEmpty: !!checked,
+                                        includeEmpty: false
+                                    })}
+                                />
+                                <Label htmlFor={`${field}-only-empty`} className="text-xs text-muted-foreground font-normal cursor-pointer">仅空值</Label>
                             </div>
-                        )}
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id={`${field}-include-empty`}
+                                    checked={condition?.includeEmpty || false}
+                                    disabled={condition?.onlyEmpty}
+                                    onCheckedChange={checked => updateCondition(field, { includeEmpty: !!checked })}
+                                />
+                                <Label htmlFor={`${field}-include-empty`} className="text-xs text-muted-foreground font-normal cursor-pointer">含空值</Label>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
-                        {/* 根据类型渲染筛选器 */}
-                        {!condition?.onlyEmpty && (
-                            <>
-                                {type === 'text' && renderTextFilter(field, uniqueValues[field] || [])}
-                                {type === 'number' && renderNumberFilter(field, config)}
-                                {type === 'passage' && renderPassageFilter(field, uniqueValues[field] || [])}
-                                {type === 'date' && renderDateFilter(field)}
-                                {type === 'boolean' && renderBooleanFilter(field)}
-                            </>
-                        )}
-                    </div>
-                )}
+                {/* 右侧：输入控件 */}
+                <div className="flex-1 min-w-0">
+                    {!condition?.onlyEmpty && (
+                        <>
+                            {type === 'text' && renderTextFilter(field, uniqueValues[field] || [])}
+                            {type === 'number' && renderNumberFilter(field, config)}
+                            {type === 'passage' && renderPassageFilter(field, uniqueValues[field] || [])}
+                            {type === 'date' && renderDateFilter(field)}
+                            {type === 'boolean' && renderBooleanFilter(field)}
+                        </>
+                    )}
+                    {condition?.onlyEmpty && (
+                        <div className="h-9 flex items-center text-sm text-muted-foreground italic">
+                            已选择仅筛选空值
+                        </div>
+                    )}
+                </div>
             </div>
         )
     }
@@ -672,7 +708,7 @@ export function SampleFilterDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+            <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
                 <DialogHeader className="pb-4 border-b">
                     <DialogTitle className="flex items-center gap-3 text-lg">
                         <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
@@ -688,28 +724,33 @@ export function SampleFilterDialog({
                 </DialogHeader>
 
                 {/* 范围选择 */}
-                <div className="flex items-center gap-3 py-2 border-b">
-                    <Label className="text-sm whitespace-nowrap">筛选范围:</Label>
+                <div className="flex items-center gap-3 py-3 border-b bg-muted/10 px-6 -mx-6">
+                    <Label className="text-sm font-medium whitespace-nowrap">筛选范围:</Label>
                     <Select value={scope} onValueChange={(v: 'all' | 'facility' | 'rack') => setScope(v)}>
-                        <SelectTrigger className="w-48 h-8">
+                        <SelectTrigger className="w-[200px] h-9 bg-background">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">全库</SelectItem>
+                            <SelectItem value="all">全库搜索</SelectItem>
                             {currentFacilityId && (
-                                <SelectItem value="facility">当前设施: {currentFacilityName}</SelectItem>
+                                <SelectItem value="facility">仅当前设施 ({currentFacilityName})</SelectItem>
                             )}
                             {currentRackId && (
-                                <SelectItem value="rack">当前架子: {currentRackName}</SelectItem>
+                                <SelectItem value="rack">仅当前架子 ({currentRackName})</SelectItem>
                             )}
                         </SelectContent>
                     </Select>
-                    {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                    {loading && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            正在加载选项...
+                        </div>
+                    )}
                 </div>
 
-                {/* 筛选条件列表 - 使用固定高度和原生滚动 */}
+                {/* 筛选条件列表 - Grid 布局 */}
                 <div className="flex-1 overflow-y-auto pr-2 min-h-0" style={{ maxHeight: 'calc(80vh - 200px)' }}>
-                    <div className="space-y-2 py-2">
+                    <div className="grid grid-cols-1 gap-0 py-2">
                         {FIELD_CONFIG.map(config => renderFieldFilter(config))}
                     </div>
                 </div>
@@ -720,7 +761,7 @@ export function SampleFilterDialog({
                         variant="ghost"
                         onClick={handleClear}
                         disabled={filtering}
-                        className="text-gray-500 hover:text-red-600 hover:bg-red-50"
+                        className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
                     >
                         <X className="h-4 w-4 mr-1" />
                         清除全部
@@ -732,7 +773,7 @@ export function SampleFilterDialog({
                         <Button
                             onClick={handleApply}
                             disabled={filtering}
-                            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm min-w-[100px]"
                         >
                             {filtering ? (
                                 <>

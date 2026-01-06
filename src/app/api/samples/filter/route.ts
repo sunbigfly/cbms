@@ -431,6 +431,16 @@ export async function GET(request: NextRequest) {
         const scopeType = searchParams.get('scope') || 'all'
         const scopeId = searchParams.get('scopeId')
 
+        let conditions: FilterCondition[] = []
+        try {
+            const conditionsParam = searchParams.get('conditions')
+            if (conditionsParam) {
+                conditions = JSON.parse(conditionsParam)
+            }
+        } catch (e) {
+            console.error('Failed to parse conditions:', e)
+        }
+
         // 构建查询条件
         const isPrivate = libraryMode === 'private'
         const isAdmin = session.user.role === 'ADMIN'
@@ -451,6 +461,7 @@ export async function GET(request: NextRequest) {
                 media: true,
                 sterileCheck: true,
                 owner: true,
+                updatedAt: true, // 需要包含该字段
                 slot: {
                     select: {
                         box: {
@@ -478,39 +489,17 @@ export async function GET(request: NextRequest) {
             }
         })
 
-        // 先输出调试信息
-        console.log(`Filter API GET: Total samples in DB: ${samples.length}`)
-        if (samples.length > 0) {
-            const sampleFacilities = samples.slice(0, 3).map(s => ({
-                facility: s.slot?.box?.shelf?.rack?.facility,
-                sampleName: s.name
-            }))
-            console.log('Sample facilities:', JSON.stringify(sampleFacilities, null, 2))
-        }
-
-        // 根据 libraryMode 和 scope 过滤样本
-        const filteredSamples = samples.filter(sample => {
+        // 1. 基础过滤：Scope 和 LibraryMode
+        const baseFilteredSamples = samples.filter(sample => {
             const facility = sample.slot?.box?.shelf?.rack?.facility
-            if (!facility) {
-                console.log(`Sample ${sample.name} has no facility`)
-                return false
-            }
+            if (!facility) return false
 
-            // 检查 library mode (与 inventory API 保持一致)
+            // 检查 library mode
             if (isPrivate) {
-                // 私有库：设施必须是私有的
-                if (!facility.isPrivate) {
-                    return false
-                }
-                // 非管理员只能看自己的私有库
-                if (!isAdmin && facility.ownerId !== userId) {
-                    return false
-                }
+                if (!facility.isPrivate) return false
+                if (!isAdmin && facility.ownerId !== userId) return false
             } else {
-                // 公共库：设施必须不是私有的
-                if (facility.isPrivate) {
-                    return false
-                }
+                if (facility.isPrivate) return false
             }
 
             // 检查 scope
@@ -519,32 +508,58 @@ export async function GET(request: NextRequest) {
             } else if (scopeType === 'rack' && scopeId) {
                 if (sample.slot?.box?.shelf?.rack?.id !== scopeId) return false
             }
-
             return true
         })
 
-        // 提取每个字段的唯一值
-        const uniqueValues = {
-            name: [...new Set(filteredSamples.map(s => s.name).filter(Boolean))].sort(),
-            type: [...new Set(filteredSamples.map(s => s.type).filter(Boolean))].sort(),
-            batchNo: [...new Set(filteredSamples.map(s => s.batchNo).filter(Boolean))].sort() as string[],
-            passage: [...new Set(filteredSamples.map(s => s.passage).filter(Boolean))].sort((a, b) => {
-                const numA = parsePassage(a!) ?? 0
-                const numB = parsePassage(b!) ?? 0
-                return numA - numB
-            }) as string[],
-            concentration: [...new Set(filteredSamples.map(s => s.concentration).filter(Boolean))].sort(),
-            media: [...new Set(filteredSamples.map(s => s.media).filter(Boolean))].sort() as string[],
-            sterileCheck: [...new Set(filteredSamples.map(s => s.sterileCheck).filter(Boolean))].sort() as string[],
-            owner: [...new Set(filteredSamples.map(s => s.owner).filter(Boolean))].sort(),
+        // 辅助函数：根据条件获取特定字段的唯一值
+        // 逻辑：对于字段 F，应用的筛选条件应该是 "除 F 以外的所有其他字段的条件"
+        const getUniqueValuesForField = (targetField: string) => {
+            // 找出不属于当前字段的有效条件
+            const otherConditions = conditions.filter(c => c.field !== targetField)
+
+            // 筛选样本
+            const filtered = baseFilteredSamples.filter(sample => {
+                return otherConditions.every(condition => {
+                    const fieldValue = getFieldValue(sample as any, condition.field)
+                    return matchesCondition(fieldValue, condition)
+                })
+            })
+
+            // 提取唯一值
+            const values = filtered
+                .map(s => getFieldValue(s as any, targetField))
+                .filter(v => v !== null && v !== undefined && v !== '')
+
+            // 特殊处理：排序 (代次 numeric sort, 文本 alpha sort)
+            const unique = [...new Set(values)] as any[]
+
+            if (targetField === 'passage') {
+                return unique.sort((a, b) => {
+                    const numA = parsePassage(String(a)) ?? 0
+                    const numB = parsePassage(String(b)) ?? 0
+                    return numA - numB
+                }).map(String)
+            }
+
+            return unique.sort().map(String)
         }
 
-        console.log(`Filter API GET: found ${filteredSamples.length} samples out of ${samples.length}, libraryMode=${libraryMode}, isPrivate=${isPrivate}, scope=${scopeType}, userId=${session.user.id}`)
+        // 提取所有字段的唯一值
+        const uniqueValues = {
+            name: getUniqueValuesForField('name'),
+            type: getUniqueValuesForField('type'),
+            batchNo: getUniqueValuesForField('batchNo'),
+            passage: getUniqueValuesForField('passage'),
+            concentration: getUniqueValuesForField('concentration'),
+            media: getUniqueValuesForField('media'),
+            sterileCheck: getUniqueValuesForField('sterileCheck'),
+            owner: getUniqueValuesForField('owner'),
+        }
 
         return NextResponse.json({
             success: true,
             uniqueValues,
-            sampleCount: filteredSamples.length
+            sampleCount: baseFilteredSamples.length
         })
 
     } catch (error) {
