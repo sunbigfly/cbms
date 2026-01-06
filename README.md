@@ -43,6 +43,79 @@
 
 ---
 
+## 💡 环境安装指南
+
+如果您的开发环境尚未安装上述依赖，请参考以下指南：
+
+### 1. Node.js (使用 nvm)
+
+推荐在 WSL 中使用 `nvm` 管理 Node 版本：
+
+```bash
+# 1. 安装 nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# 2. 使配置生效
+source ~/.bashrc
+
+# 3. 安装 Node.js LTS 并使用
+nvm install --lts
+nvm use --lts
+
+# 4. 验证
+node -v
+npm -v
+```
+
+### 2. pnpm 包管理器
+
+```bash
+# 全局安装 pnpm
+npm install -g pnpm
+
+# 验证
+pnpm -v
+```
+
+### 3. PostgreSQL 数据库
+
+**方式 A: 使用 Docker (推荐)**
+如果您的 WSL 已连接 Docker Desktop：
+```bash
+docker run --name cbms-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
+```
+
+**方式 B: WSL 原生安装 (Ubuntu/Debian)**
+```bash
+# 1. 更新并安装
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# 2. 启动服务
+sudo service postgresql start
+
+# 3. 修改默认用户 postgres 的密码 (设为 postgres 或记住您的密码)
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+```
+
+### 4. Redis (可选)
+
+**方式 A: 使用 Docker (推荐)**
+```bash
+docker run --name cbms-redis -p 6379:6379 -d redis
+```
+
+**方式 B: WSL 原生安装**
+```bash
+# 1. 安装
+sudo apt install redis-server
+
+# 2. 启动服务
+sudo service redis-server start
+```
+
+---
+
 ## 🚀 快速开始
 
 ### 1. 克隆项目
