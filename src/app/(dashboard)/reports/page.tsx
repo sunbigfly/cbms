@@ -321,138 +321,140 @@ export default function ReportsPage() {
                     </Card>
                 </div>
 
-                {/* Daily Trends Chart */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-primary" />
-                            最近30天操作趋势
-                        </CardTitle>
-                        <CardDescription>每日入库、出库、编辑操作数量</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {reportStats?.dailyTrends && reportStats.dailyTrends.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={300}>
-                                <AreaChart data={reportStats.dailyTrends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorCreate" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={TREND_COLORS.入库} stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor={TREND_COLORS.入库} stopOpacity={0} />
-                                        </linearGradient>
-                                        <linearGradient id="colorConsume" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={TREND_COLORS.出库} stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor={TREND_COLORS.出库} stopOpacity={0} />
-                                        </linearGradient>
-                                        <linearGradient id="colorUpdate" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={TREND_COLORS.编辑} stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor={TREND_COLORS.编辑} stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                                    <XAxis dataKey="date" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Area type="monotone" dataKey="入库" stroke={TREND_COLORS.入库} fillOpacity={1} fill="url(#colorCreate)" strokeWidth={2} />
-                                    <Area type="monotone" dataKey="出库" stroke={TREND_COLORS.出库} fillOpacity={1} fill="url(#colorConsume)" strokeWidth={2} />
-                                    <Area type="monotone" dataKey="编辑" stroke={TREND_COLORS.编辑} fillOpacity={1} fill="url(#colorUpdate)" strokeWidth={2} />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                                暂无操作记录
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Distribution Chart with Dropdown */}
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div>
-                                <CardTitle className="flex items-center gap-2">
-                                    <BarChart3 className="h-5 w-5 text-primary" />
-                                    样本分布统计
-                                </CardTitle>
-                                <CardDescription className="mt-1">
-                                    {selectedOption?.description}
-                                </CardDescription>
-                            </div>
-                            <Select value={selectedDistribution} onValueChange={(v) => setSelectedDistribution(v as DistributionType)}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="选择分布类型" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {DISTRIBUTION_OPTIONS.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {distributionData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={350}>
-                                {usePieChart ? (
-                                    <PieChart>
-                                        <Pie
-                                            data={distributionData}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            outerRadius={120}
-                                            innerRadius={60}
-                                            fill="#8884d8"
-                                            dataKey="value"
-                                            animationDuration={500}
-                                            label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
-                                        >
-                                            {distributionData.map((_entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend formatter={(value) => <span className="text-sm">{value}</span>} />
-                                    </PieChart>
-                                ) : (
-                                    <BarChart
-                                        data={distributionData}
-                                        layout={selectedDistribution === 'owner' ? 'vertical' : 'horizontal'}
-                                        margin={{ top: 10, right: 30, left: selectedDistribution === 'owner' ? 80 : 0, bottom: 0 }}
-                                    >
+                <div className="grid gap-6 lg:grid-cols-2">
+                    {/* Daily Trends Chart */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-primary" />
+                                最近30天操作趋势
+                            </CardTitle>
+                            <CardDescription>每日入库、出库、编辑操作数量</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {reportStats?.dailyTrends && reportStats.dailyTrends.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <AreaChart data={reportStats.dailyTrends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorCreate" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={TREND_COLORS.入库} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={TREND_COLORS.入库} stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="colorConsume" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={TREND_COLORS.出库} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={TREND_COLORS.出库} stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="colorUpdate" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={TREND_COLORS.编辑} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={TREND_COLORS.编辑} stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
                                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                                        {selectedDistribution === 'owner' ? (
-                                            <>
-                                                <XAxis type="number" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                                                <YAxis type="category" dataKey="name" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} width={75} />
-                                            </>
-                                        ) : (
-                                            <>
-                                                <XAxis dataKey="name" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                                                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                                            </>
-                                        )}
+                                        <XAxis dataKey="date" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                        <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                                         <Tooltip />
-                                        <Bar
-                                            dataKey="value"
-                                            name="样本数"
-                                            fill="hsl(221, 83%, 53%)"
-                                            radius={selectedDistribution === 'owner' ? [0, 4, 4, 0] : [4, 4, 0, 0]}
-                                            animationDuration={500}
-                                        />
-                                    </BarChart>
-                                )}
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-[350px] flex items-center justify-center text-muted-foreground">
-                                暂无样本数据
+                                        <Legend />
+                                        <Area type="monotone" dataKey="入库" stroke={TREND_COLORS.入库} fillOpacity={1} fill="url(#colorCreate)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="出库" stroke={TREND_COLORS.出库} fillOpacity={1} fill="url(#colorConsume)" strokeWidth={2} />
+                                        <Area type="monotone" dataKey="编辑" stroke={TREND_COLORS.编辑} fillOpacity={1} fill="url(#colorUpdate)" strokeWidth={2} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                                    暂无操作记录
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Distribution Chart with Dropdown */}
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <BarChart3 className="h-5 w-5 text-primary" />
+                                        样本分布统计
+                                    </CardTitle>
+                                    <CardDescription className="mt-1">
+                                        {selectedOption?.description}
+                                    </CardDescription>
+                                </div>
+                                <Select value={selectedDistribution} onValueChange={(v) => setSelectedDistribution(v as DistributionType)}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="选择分布类型" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {DISTRIBUTION_OPTIONS.map(option => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardHeader>
+                        <CardContent>
+                            {distributionData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={350}>
+                                    {usePieChart ? (
+                                        <PieChart>
+                                            <Pie
+                                                data={distributionData}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                outerRadius={120}
+                                                innerRadius={60}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                                animationDuration={500}
+                                                label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+                                            >
+                                                {distributionData.map((_entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                            <Legend formatter={(value) => <span className="text-sm">{value}</span>} />
+                                        </PieChart>
+                                    ) : (
+                                        <BarChart
+                                            data={distributionData}
+                                            layout={selectedDistribution === 'owner' ? 'vertical' : 'horizontal'}
+                                            margin={{ top: 10, right: 30, left: selectedDistribution === 'owner' ? 80 : 0, bottom: 0 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                            {selectedDistribution === 'owner' ? (
+                                                <>
+                                                    <XAxis type="number" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                                    <YAxis type="category" dataKey="name" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} width={75} />
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <XAxis dataKey="name" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                                </>
+                                            )}
+                                            <Tooltip />
+                                            <Bar
+                                                dataKey="value"
+                                                name="样本数"
+                                                fill="hsl(221, 83%, 53%)"
+                                                radius={selectedDistribution === 'owner' ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+                                                animationDuration={500}
+                                            />
+                                        </BarChart>
+                                    )}
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+                                    暂无样本数据
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
 
                 {/* Import/Export */}
                 <Card>

@@ -361,6 +361,23 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
     const slotMap = new Map<number, Slot>()
     slots.forEach(slot => slotMap.set(slot.position, slot))
 
+    // 以 9x9 为基准计算格子大小
+    // 基准大小为 36px (w-9)，9x9 时不变
+    // 小于 9x9 时放大，大于 9x9 时缩小
+    const BASE_SIZE = 36 // 基准格子大小 (像素)
+    const BASE_DIMENSION = 9 // 基准维度
+    const MIN_SIZE = 20 // 最小格子大小
+    const MAX_SIZE = 48 // 最大格子大小
+
+    const maxDimension = Math.max(rows, columns)
+    const scaleFactor = BASE_DIMENSION / maxDimension
+    const calculatedSize = Math.round(BASE_SIZE * scaleFactor)
+    const cellSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, calculatedSize))
+
+    // 对应的行标签宽度和列标签高度
+    const labelWidth = Math.max(16, Math.round(cellSize * 0.55))
+    const headerHeight = Math.max(16, Math.round(cellSize * 0.55))
+
     // Get slot style based on status, selection, batch group, drag state, and filter match
     const getSlotStyle = (slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean, isInDrag: boolean, isFilterMatch: boolean) => {
         const isOccupied = slot?.status === 'OCCUPIED'
@@ -446,9 +463,13 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                 onMouseLeave={handleDragEnd}
             >
                 {/* Column headers */}
-                <div className="inline-flex gap-1 mb-1 ml-6">
+                <div className="inline-flex gap-0.5 mb-0.5" style={{ marginLeft: labelWidth + 2 }}>
                     {Array.from({ length: columns }, (_, i) => (
-                        <div key={i} className="w-9 h-5 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                        <div
+                            key={i}
+                            className="flex items-center justify-center text-muted-foreground font-medium"
+                            style={{ width: cellSize, height: headerHeight, fontSize: Math.max(10, cellSize * 0.35) }}
+                        >
                             {i + 1}
                         </div>
                     ))}
@@ -457,8 +478,11 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                 {/* Grid with row labels */}
                 <TooltipProvider>
                     {Array.from({ length: rows }, (_, rowIndex) => (
-                        <div key={rowIndex} className="inline-flex gap-1 mb-1">
-                            <div className="w-5 h-9 flex items-center justify-center text-xs text-muted-foreground font-medium">
+                        <div key={rowIndex} className="inline-flex gap-0.5 mb-0.5">
+                            <div
+                                className="flex items-center justify-center text-muted-foreground font-medium"
+                                style={{ width: labelWidth, height: cellSize, fontSize: Math.max(10, cellSize * 0.35) }}
+                            >
                                 {rowLabels[rowIndex]}
                             </div>
                             {Array.from({ length: columns }, (_, colIndex) => {
@@ -483,14 +507,17 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                                                 }}
                                                 onMouseDown={(e) => handleDragStart(rowIndex, colIndex, e)}
                                                 onMouseEnter={() => handleDragMove(rowIndex, colIndex)}
-                                                className={`w-9 h-9 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center p-0.5 break-all text-center font-medium overflow-hidden ${(() => {
+                                                style={{ width: cellSize, height: cellSize }}
+                                                className={`rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center p-0.5 break-all text-center font-medium overflow-hidden ${(() => {
                                                     const name = slot?.sample?.name || ''
                                                     const len = name.length
-                                                    if (len <= 2) return 'text-xs'
-                                                    if (len <= 3) return 'text-[10px]'
-                                                    if (len <= 5) return 'text-[9px] leading-3'
-                                                    if (len <= 8) return 'text-[8px] leading-none'
-                                                    return 'text-[7px] leading-none tracking-tight'
+                                                    // 根据格子大小和名称长度动态调整字体
+                                                    const baseFontSize = Math.max(7, cellSize * 0.28)
+                                                    if (len <= 2) return `text-[${Math.round(baseFontSize + 4)}px]`
+                                                    if (len <= 3) return `text-[${Math.round(baseFontSize + 2)}px]`
+                                                    if (len <= 5) return `text-[${Math.round(baseFontSize)}px] leading-3`
+                                                    if (len <= 8) return `text-[${Math.round(baseFontSize - 1)}px] leading-none`
+                                                    return `text-[${Math.round(baseFontSize - 2)}px] leading-none tracking-tight`
                                                 })()
                                                     } ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag, isFilterMatch)}`}
                                             >

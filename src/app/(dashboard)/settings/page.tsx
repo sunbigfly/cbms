@@ -500,14 +500,14 @@ export default function SettingsPage() {
                                                 新增细胞库
                                             </Button>
                                         </DialogTrigger>
-                                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                                             <DialogHeader>
                                                 <DialogTitle>创建新细胞库</DialogTitle>
                                                 <DialogDescription>
                                                     按步骤配置您的存储细胞库
                                                 </DialogDescription>
                                             </DialogHeader>
-                                            <CreateFacilityWizard onSuccess={handleFacilitySuccess} />
+                                            <CreateFacilityWizard embedded onSuccess={handleFacilitySuccess} />
                                         </DialogContent>
                                     </Dialog>
                                 </div>
@@ -755,14 +755,14 @@ export default function SettingsPage() {
                                             新增私有细胞库
                                         </Button>
                                     </DialogTrigger>
-                                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                    <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                                         <DialogHeader>
                                             <DialogTitle>创建私有细胞库</DialogTitle>
                                             <DialogDescription>
                                                 按步骤配置您的私有存储细胞库
                                             </DialogDescription>
                                         </DialogHeader>
-                                        <CreateFacilityWizard forcePrivate={true} onSuccess={handlePrivateFacilitySuccess} />
+                                        <CreateFacilityWizard forcePrivate={true} embedded onSuccess={handlePrivateFacilitySuccess} />
                                     </DialogContent>
                                 </Dialog>
                             </div>
