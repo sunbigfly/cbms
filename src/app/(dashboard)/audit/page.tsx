@@ -35,7 +35,7 @@ function ActionBadge({ action }: { action: string }) {
     }
 
     return (
-        <Badge variant={variants[action] || 'outline'}>
+        <Badge variant={variants[action] || 'outline'} className="whitespace-nowrap">
             {labels[action] || action}
         </Badge>
     )
@@ -63,17 +63,23 @@ const columns: ColumnDef<AuditLog>[] = [
             if (!value) return true
             return row.getValue(id) === value
         },
+        size: 60,
     },
     {
         accessorKey: 'sample',
         header: '样本名称',
         cell: ({ row }) => (
-            <span className="font-medium">{row.getValue('sample')}</span>
+            <span className="font-medium whitespace-nowrap">{row.getValue('sample')}</span>
         ),
+        size: 120,
     },
     {
         accessorKey: 'user',
         header: '操作人',
+        cell: ({ row }) => (
+            <span className="whitespace-nowrap">{row.getValue('user')}</span>
+        ),
+        size: 70,
     },
     {
         accessorKey: 'timestamp',
@@ -83,12 +89,13 @@ const columns: ColumnDef<AuditLog>[] = [
                 {formatTimestamp(row.getValue('timestamp'))}
             </span>
         ),
+        size: 160,
     },
     {
         accessorKey: 'description',
         header: '描述',
         cell: ({ row }) => (
-            <span className="text-sm text-muted-foreground line-clamp-2">
+            <span className="text-sm text-muted-foreground">
                 {row.getValue('description')}
             </span>
         ),
@@ -107,14 +114,16 @@ const actionFilterOptions = [
 export default function AuditPage() {
     const [loading, setLoading] = useState(true)
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+    const [totalCount, setTotalCount] = useState(0)
 
     useEffect(() => {
         async function fetchAuditLogs() {
             try {
-                const res = await fetch('/api/audit')
+                const res = await fetch('/api/audit?limit=0')
                 if (res.ok) {
                     const data = await res.json()
                     setAuditLogs(data.logs || [])
+                    setTotalCount(data.total || 0)
                 }
             } catch (error) {
                 console.error('Failed to fetch audit logs:', error)
@@ -156,7 +165,7 @@ export default function AuditPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>操作日志</CardTitle>
-                    <CardDescription>共 {auditLogs.length} 条记录</CardDescription>
+                    <CardDescription>共 {totalCount} 条记录</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <DataTable

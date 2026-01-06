@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
                     sample: { select: { name: true } },
                 },
                 orderBy: { timestamp: 'desc' },
-                take: limit,
-                skip: offset,
+                ...(limit > 0 ? { take: limit, skip: offset } : {}),
             }),
             prisma.auditLog.count({ where }),
         ])
