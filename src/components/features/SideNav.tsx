@@ -11,8 +11,8 @@ import {
     Settings,
     FlaskConical,
     LogOut,
-    ChevronLeft,
-    ChevronRight,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -221,10 +221,14 @@ export function SideNav() {
                     <Button
                         variant="ghost"
                         size="sm"
-                        className={cn('w-full', collapsed ? 'justify-center px-0' : 'justify-start px-2')}
+                        className={cn('w-full', collapsed ? 'justify-center px-0 gap-0' : 'justify-start px-2')}
                         onClick={() => setCollapsed(!collapsed)}
                     >
-                        <ChevronLeft className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300 flex-shrink-0", collapsed && "rotate-180")} />
+                        {collapsed ? (
+                            <PanelLeftOpen className="h-4 w-4 text-muted-foreground transition-transform duration-300 flex-shrink-0" />
+                        ) : (
+                            <PanelLeftClose className="h-4 w-4 text-muted-foreground transition-transform duration-300 flex-shrink-0" />
+                        )}
                         <span className={cn(
                             "text-muted-foreground whitespace-nowrap overflow-hidden",
                             mounted && "transition-all duration-300",
