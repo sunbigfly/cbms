@@ -67,3 +67,26 @@ export async function DELETE(request: NextRequest) {
         )
     }
 }
+
+
+export async function PUT(request: NextRequest) {
+    try {
+        const body = await request.json()
+        const { id, name } = body
+
+        if (!id) {
+            return NextResponse.json({ error: '缺少架子 ID' }, { status: 400 })
+        }
+
+        const { updateRack } = await import('@/server/db/facility')
+        await updateRack(id, { name })
+
+        return NextResponse.json({ success: true, message: '架子更新成功' })
+    } catch (error) {
+        console.error('Error updating rack:', error)
+        return NextResponse.json(
+            { error: '更新架子失败', details: error instanceof Error ? error.message : '未知错误' },
+            { status: 500 }
+        )
+    }
+}

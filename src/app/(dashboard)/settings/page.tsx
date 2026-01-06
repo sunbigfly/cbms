@@ -126,6 +126,8 @@ export default function SettingsPage() {
     const [deletingRackId, setDeletingRackId] = useState<string | null>(null)
     const [deleteBoxDialogOpen, setDeleteBoxDialogOpen] = useState(false)
     const [deletingBoxId, setDeletingBoxId] = useState<string | null>(null)
+    const [deleteShelfDialogOpen, setDeleteShelfDialogOpen] = useState(false)
+    const [deletingShelfId, setDeletingShelfId] = useState<string | null>(null)
 
     // User management state
     interface UserInfo {
@@ -140,7 +142,23 @@ export default function SettingsPage() {
     const [users, setUsers] = useState<UserInfo[]>([])
     const [usersLoading, setUsersLoading] = useState(false)
     const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false)
+
     const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+
+    // Edit Rack Dialog State
+    const [editRackDialogOpen, setEditRackDialogOpen] = useState(false)
+    const [editingRack, setEditingRack] = useState<{ id: string, name: string } | null>(null)
+    const [editRackName, setEditRackName] = useState('')
+
+    // Edit Shelf Dialog State
+    const [editShelfDialogOpen, setEditShelfDialogOpen] = useState(false)
+    const [editingShelf, setEditingShelf] = useState<{ id: string, name: string } | null>(null)
+    const [editShelfName, setEditShelfName] = useState('')
+
+    // Edit Box Dialog State
+    const [editBoxDialogOpen, setEditBoxDialogOpen] = useState(false)
+    const [editingBox, setEditingBox] = useState<{ id: string, name: string, rows: number, cols: number } | null>(null)
+    const [editBoxFormData, setEditBoxFormData] = useState({ name: '', rows: 9, columns: 9 })
 
     const fetchFacilities = useCallback(async () => {
         try {
@@ -382,6 +400,44 @@ export default function SettingsPage() {
         }
     }
 
+    // Add shelf
+    const handleAddShelf = async (rackId: string) => {
+        try {
+            const res = await fetch('/api/shelves', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rackId }),
+            })
+            if (res.ok) {
+                toast({ title: '添加成功', description: '层已添加' })
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '添加失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '添加失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Delete shelf
+    const handleDeleteShelf = async () => {
+        if (!deletingShelfId) return
+        try {
+            const res = await fetch(`/api/shelves?id=${deletingShelfId}`, { method: 'DELETE' })
+            if (res.ok) {
+                toast({ title: '删除成功', description: '层已删除' })
+                setDeleteShelfDialogOpen(false)
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '删除失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '删除失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
     // Add box handlers
     const openAddBoxDialog = (shelfId: string) => {
         setAddBoxShelfId(shelfId)
@@ -407,6 +463,72 @@ export default function SettingsPage() {
             }
         } catch (error) {
             toast({ title: '添加失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Rack Edit Handler
+    const handleUpdateRack = async () => {
+        if (!editingRack) return
+        try {
+            const res = await fetch('/api/racks', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: editingRack.id, name: editRackName }),
+            })
+            if (res.ok) {
+                toast({ title: '更新成功', description: '架子名称已更新' })
+                setEditRackDialogOpen(false)
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '更新失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '更新失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Shelf Edit Handler
+    const handleUpdateShelf = async () => {
+        if (!editingShelf) return
+        try {
+            const res = await fetch('/api/shelves', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: editingShelf.id, name: editShelfName }),
+            })
+            if (res.ok) {
+                toast({ title: '更新成功', description: '层名称已更新' })
+                setEditShelfDialogOpen(false)
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '更新失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '更新失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Box Edit Handler
+    const handleUpdateBox = async () => {
+        if (!editingBox) return
+        try {
+            const res = await fetch('/api/boxes', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: editingBox.id, ...editBoxFormData }),
+            })
+            if (res.ok) {
+                toast({ title: '更新成功', description: '盒子信息已更新' })
+                setEditBoxDialogOpen(false)
+                if (expandedFacility) fetchFacilityDetails(expandedFacility)
+            } else {
+                const data = await res.json()
+                toast({ title: '更新失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '更新失败', description: '网络错误', variant: 'destructive' })
         }
     }
 
@@ -576,34 +698,98 @@ export default function SettingsPage() {
                                                                         <Layers className="h-4 w-4 text-muted-foreground" />
                                                                         <span className="font-medium">{rack.name}</span>
                                                                         <Badge variant="secondary">{rack.totalShelves} 层</Badge>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-4 w-4 text-muted-foreground ml-2"
+                                                                            onClick={() => {
+                                                                                setEditingRack({ id: rack.id, name: rack.name })
+                                                                                setEditRackName(rack.name)
+                                                                                setEditRackDialogOpen(true)
+                                                                            }}
+                                                                            title="编辑架子"
+                                                                        >
+                                                                            <Edit className="h-3 w-3" />
+                                                                        </Button>
                                                                     </div>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-7 w-7 text-destructive"
-                                                                        onClick={() => {
-                                                                            setDeletingRackId(rack.id)
-                                                                            setDeleteRackDialogOpen(true)
-                                                                        }}
-                                                                    >
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    </Button>
+                                                                    <div className="flex gap-1">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7"
+                                                                            onClick={() => handleAddShelf(rack.id)}
+                                                                            title="添加层"
+                                                                        >
+                                                                            <Plus className="h-4 w-4" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-7 w-7 text-destructive"
+                                                                            onClick={() => {
+                                                                                setDeletingRackId(rack.id)
+                                                                                setDeleteRackDialogOpen(true)
+                                                                            }}
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
                                                                 </div>
 
                                                                 {/* Shelves and Boxes */}
                                                                 {rack.shelves?.map((shelf) => (
-                                                                    <div key={shelf.id} className="ml-4 py-1">
+                                                                    <div key={shelf.id} className="ml-4 py-1 group">
                                                                         <div className="flex items-center justify-between">
-                                                                            <span className="text-sm text-muted-foreground">{shelf.name}</span>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-sm text-muted-foreground">{shelf.name}</span>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                                    onClick={() => {
+                                                                                        setEditingShelf({ id: shelf.id, name: shelf.name })
+                                                                                        setEditShelfName(shelf.name)
+                                                                                        setEditShelfDialogOpen(true)
+                                                                                    }}
+                                                                                    title="编辑层名称"
+                                                                                >
+                                                                                    <Edit className="h-3 w-3" />
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                                    onClick={() => {
+                                                                                        setDeletingShelfId(shelf.id)
+                                                                                        setDeleteShelfDialogOpen(true)
+                                                                                    }}
+                                                                                    title="删除该层"
+                                                                                >
+                                                                                    <Trash2 className="h-3 w-3" />
+                                                                                </Button>
+                                                                            </div>
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="flex gap-1">
                                                                                     {shelf.boxes?.map((box) => (
                                                                                         <div
                                                                                             key={box.id}
-                                                                                            className="flex items-center gap-1 px-2 py-1 bg-background border rounded text-xs"
+                                                                                            className="flex items-center gap-1 px-2 py-1 bg-background border rounded text-xs group/box"
                                                                                         >
                                                                                             <Package className="h-3 w-3" />
                                                                                             {box.name}
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-4 w-4 text-muted-foreground opacity-0 group-hover/box:opacity-100 transition-opacity"
+                                                                                                onClick={() => {
+                                                                                                    setEditingBox({ id: box.id, name: box.name, rows: box.rows, cols: box.columns })
+                                                                                                    setEditBoxFormData({ name: box.name, rows: box.rows, columns: box.columns })
+                                                                                                    setEditBoxDialogOpen(true)
+                                                                                                }}
+                                                                                                title="编辑盒子"
+                                                                                            >
+                                                                                                <Edit className="h-2 w-2" />
+                                                                                            </Button>
                                                                                             <Button
                                                                                                 variant="ghost"
                                                                                                 size="icon"
@@ -831,34 +1017,98 @@ export default function SettingsPage() {
                                                                     <Layers className="h-4 w-4 text-muted-foreground" />
                                                                     <span className="font-medium">{rack.name}</span>
                                                                     <Badge variant="secondary">{rack.totalShelves} 层</Badge>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-4 w-4 text-muted-foreground ml-2"
+                                                                        onClick={() => {
+                                                                            setEditingRack({ id: rack.id, name: rack.name })
+                                                                            setEditRackName(rack.name)
+                                                                            setEditRackDialogOpen(true)
+                                                                        }}
+                                                                        title="编辑架子"
+                                                                    >
+                                                                        <Edit className="h-3 w-3" />
+                                                                    </Button>
                                                                 </div>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-7 w-7 text-destructive"
-                                                                    onClick={() => {
-                                                                        setDeletingRackId(rack.id)
-                                                                        setDeleteRackDialogOpen(true)
-                                                                    }}
-                                                                >
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </Button>
+                                                                <div className="flex gap-1">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-7 w-7"
+                                                                        onClick={() => handleAddShelf(rack.id)}
+                                                                        title="添加层"
+                                                                    >
+                                                                        <Plus className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-7 w-7 text-destructive"
+                                                                        onClick={() => {
+                                                                            setDeletingRackId(rack.id)
+                                                                            setDeleteRackDialogOpen(true)
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
 
                                                             {/* Shelves and Boxes */}
                                                             {rack.shelves?.map((shelf) => (
-                                                                <div key={shelf.id} className="ml-4 py-1">
+                                                                <div key={shelf.id} className="ml-4 py-1 group">
                                                                     <div className="flex items-center justify-between">
-                                                                        <span className="text-sm text-muted-foreground">{shelf.name}</span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-sm text-muted-foreground">{shelf.name}</span>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                                onClick={() => {
+                                                                                    setEditingShelf({ id: shelf.id, name: shelf.name })
+                                                                                    setEditShelfName(shelf.name)
+                                                                                    setEditShelfDialogOpen(true)
+                                                                                }}
+                                                                                title="编辑层名称"
+                                                                            >
+                                                                                <Edit className="h-3 w-3" />
+                                                                            </Button>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-6 w-6 text-destructive lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
+                                                                                onClick={() => {
+                                                                                    setDeletingShelfId(shelf.id)
+                                                                                    setDeleteShelfDialogOpen(true)
+                                                                                }}
+                                                                                title="删除该层"
+                                                                            >
+                                                                                <Trash2 className="h-3 w-3" />
+                                                                            </Button>
+                                                                        </div>
                                                                         <div className="flex items-center gap-2">
                                                                             <div className="flex gap-1">
                                                                                 {shelf.boxes?.map((box) => (
                                                                                     <div
                                                                                         key={box.id}
-                                                                                        className="flex items-center gap-1 px-2 py-1 bg-background border rounded text-xs"
+                                                                                        className="flex items-center gap-1 px-2 py-1 bg-background border rounded text-xs group/box"
                                                                                     >
                                                                                         <Package className="h-3 w-3" />
                                                                                         {box.name}
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-4 w-4 text-muted-foreground opacity-0 group-hover/box:opacity-100 transition-opacity"
+                                                                                            onClick={() => {
+                                                                                                setEditingBox({ id: box.id, name: box.name, rows: box.rows, cols: box.columns })
+                                                                                                setEditBoxFormData({ name: box.name, rows: box.rows, columns: box.columns })
+                                                                                                setEditBoxDialogOpen(true)
+                                                                                            }}
+                                                                                            title="编辑盒子"
+                                                                                        >
+                                                                                            <Edit className="h-2 w-2" />
+                                                                                        </Button>
                                                                                         <Button
                                                                                             variant="ghost"
                                                                                             size="icon"
@@ -967,9 +1217,15 @@ export default function SettingsPage() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>取消</AlertDialogCancel>
                         {canDelete && (
-                            <AlertDialogAction onClick={handleDeleteFacility} className="bg-destructive text-destructive-foreground">
+                            <Button
+                                variant="destructive"
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    handleDeleteFacility()
+                                }}
+                            >
                                 删除
-                            </AlertDialogAction>
+                            </Button>
                         )}
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -1103,6 +1359,24 @@ export default function SettingsPage() {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Delete Shelf Dialog */}
+            <AlertDialog open={deleteShelfDialogOpen} onOpenChange={setDeleteShelfDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除层/抽屉</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除这个层吗？如果层内盒子有细胞样本，将无法删除。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteShelf} className="bg-destructive text-destructive-foreground">
+                            删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Delete User Dialog */}
             <AlertDialog open={deleteUserDialogOpen} onOpenChange={setDeleteUserDialogOpen}>
                 <AlertDialogContent>
@@ -1120,6 +1394,96 @@ export default function SettingsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Edit Rack Dialog */}
+            <Dialog open={editRackDialogOpen} onOpenChange={setEditRackDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>编辑架子</DialogTitle>
+                        <DialogDescription>修改架子名称</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>架子名称</Label>
+                            <Input
+                                value={editRackName}
+                                onChange={(e) => setEditRackName(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditRackDialogOpen(false)}>取消</Button>
+                        <Button onClick={handleUpdateRack}>保存</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Shelf Dialog */}
+            <Dialog open={editShelfDialogOpen} onOpenChange={setEditShelfDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>编辑层/抽屉</DialogTitle>
+                        <DialogDescription>修改层名称</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>层名称</Label>
+                            <Input
+                                value={editShelfName}
+                                onChange={(e) => setEditShelfName(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditShelfDialogOpen(false)}>取消</Button>
+                        <Button onClick={handleUpdateShelf}>保存</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Box Dialog */}
+            <Dialog open={editBoxDialogOpen} onOpenChange={setEditBoxDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>编辑盒子</DialogTitle>
+                        <DialogDescription>
+                            修改盒子名称和规格。注意：只有空盒子才能修改规格（行/列数）。
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>盒子名称</Label>
+                            <Input
+                                value={editBoxFormData.name}
+                                onChange={(e) => setEditBoxFormData(prev => ({ ...prev, name: e.target.value }))}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>行数</Label>
+                                <Input
+                                    type="number"
+                                    value={editBoxFormData.rows}
+                                    onChange={(e) => setEditBoxFormData(prev => ({ ...prev, rows: parseInt(e.target.value) || 1 }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>列数</Label>
+                                <Input
+                                    type="number"
+                                    value={editBoxFormData.columns}
+                                    onChange={(e) => setEditBoxFormData(prev => ({ ...prev, columns: parseInt(e.target.value) || 1 }))}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditBoxDialogOpen(false)}>取消</Button>
+                        <Button onClick={handleUpdateBox}>保存</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div >
     )
 }

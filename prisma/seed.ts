@@ -34,7 +34,7 @@ async function main() {
 
     // Warn if using defaults
     if (!process.env.ADMIN_PASSWORD) {
-        console.warn('⚠️  Using default admin password. Please set ADMIN_EMPLOYEE_ID/ADMIN_PASSWORD in .env')
+        console.warn('Using default admin password. Please set ADMIN_EMPLOYEE_ID/ADMIN_PASSWORD in .env')
     }
 
     const hashedPassword = await hash(adminPwdPlain, 12)

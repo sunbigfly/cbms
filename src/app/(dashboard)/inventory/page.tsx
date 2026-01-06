@@ -413,7 +413,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
             {/* Mixed selection error toast */}
             {showMixedError && (
                 <div className="mb-3 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
-                    ⚠️ 无法同时选择空闲和已占用的槽位
+                    无法同时选择空闲和已占用的槽位
                 </div>
             )}
 

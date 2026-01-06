@@ -66,3 +66,25 @@ export async function DELETE(request: NextRequest) {
         )
     }
 }
+
+export async function PUT(request: NextRequest) {
+    try {
+        const body = await request.json()
+        const { id, name, rows, columns } = body
+
+        if (!id) {
+            return NextResponse.json({ error: '缺少盒子 ID' }, { status: 400 })
+        }
+
+        const { updateBox } = await import('@/server/db/facility')
+        await updateBox(id, { name, rows, columns })
+
+        return NextResponse.json({ success: true, message: '盒子更新成功' })
+    } catch (error) {
+        console.error('Error updating box:', error)
+        return NextResponse.json(
+            { error: '更新盒子失败', details: error instanceof Error ? error.message : '未知错误' },
+            { status: 500 }
+        )
+    }
+}

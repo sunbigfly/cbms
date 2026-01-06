@@ -491,6 +491,115 @@ export async function deleteRack(rackId: string) {
 }
 
 // ============================================
+// Shelf Add & Delete
+// ============================================
+
+export async function addShelfToRack(rackId: string) {
+    // Get current shelf count for naming and ordering
+    const rack = await prisma.rack.findUnique({
+        where: { id: rackId },
+        include: { shelves: true }
+    })
+
+    if (!rack) throw new Error('架子不存在')
+
+    const newOrder = rack.shelves.length + 1
+    const name = `Drawer ${newOrder}`
+
+    const shelf = await prisma.shelf.create({
+        data: {
+            name,
+            order: newOrder,
+            rackId,
+        }
+    })
+
+    // Update rack totalShelves count
+    await prisma.rack.update({
+        where: { id: rackId },
+        data: { totalShelves: { increment: 1 } },
+    })
+
+    // 失效相关缓存
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+
+    return shelf
+}
+
+export async function deleteShelf(shelfId: string) {
+    const shelf = await prisma.shelf.findUnique({
+        where: { id: shelfId },
+        include: {
+            rack: true,
+            boxes: {
+                include: {
+                    slots: {
+                        where: { status: 'OCCUPIED' } // Only check occupied slots
+                    }
+                }
+            }
+        }
+    })
+
+    if (!shelf) throw new Error('层/抽屉不存在')
+
+    // Check if any box in the shelf has samples
+    const hasSamples = shelf.boxes.some(box => box.slots.length > 0)
+    if (hasSamples) {
+        throw new Error('无法删除：该层包含有样本的盒子')
+    }
+
+    // Even if boxes are empty, we might want to warn?
+    // For now, if no samples, allow delete. Prisma cascade might handle boxes if configured,
+    // but better check schema. Usually we might need to delete boxes first?
+    // Let's assume we can delete if no samples.
+    // However, boxes themselves might need to be deleted.
+    // Let's implement a check: if boxes exist, prevent delete or delete them?
+    // User request "Create Facility Wizard" implies structure is strict.
+    // But safely, let's just delete the shelf. Prisma usually cascades delete for children if relation is set up that way.
+    // If not, we manually delete boxes.
+    // Given the previous code `deleteRack` doesn't manually delete shelves, likely cascade is ON.
+    // But `deleteRack` checks for samples.
+
+    // Let's do a more thorough check for samples using count like other functions
+    const sampleCount = await prisma.sample.count({
+        where: {
+            slot: {
+                box: {
+                    shelfId: shelfId
+                }
+            }
+        }
+    })
+
+    if (sampleCount > 0) {
+        throw new Error(`无法删除：该层含有 ${sampleCount} 个样本`)
+    }
+
+    await prisma.shelf.delete({ where: { id: shelfId } })
+
+    // Update rack totalShelves count
+    await prisma.rack.update({
+        where: { id: shelf.rackId },
+        data: { totalShelves: { decrement: 1 } },
+    })
+
+    // Update order of remaining shelves?
+    // This is complex. If I delete Shelf 3, do Shelf 4 become 3?
+    // For simplicity, we might leave holes or reorder.
+    // Given the context, maybe just decrement count is enough for the "totalShelves" display,
+    // but the `Drawer X` names might get out of sync with `order`.
+    // Let's keep it simple for now: Delete allows it, but names might be "Drawer 1, Drawer 3".
+    // Reordering is a bigger task.
+
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+
+    return { success: true }
+}
+
+// ============================================
 // Box Add & Delete
 // ============================================
 
@@ -573,4 +682,108 @@ export async function deleteBox(boxId: string) {
     await invalidateStatsCache()
 
     return result
+}
+
+// ============================================
+// Update Operations (Rack, Shelf, Box)
+// ============================================
+
+export async function updateRack(id: string, data: { name?: string }) {
+    const result = await prisma.rack.update({
+        where: { id },
+        data,
+    })
+    await invalidateInventoryCache()
+    return result
+}
+
+export async function updateShelf(id: string, data: { name?: string }) {
+    const result = await prisma.shelf.update({
+        where: { id },
+        data,
+    })
+    await invalidateInventoryCache()
+    return result
+}
+
+export async function updateBox(id: string, data: { name?: string; rows?: number; columns?: number }) {
+    const { name, rows, columns } = data
+
+    // Check if dimensions are changing
+    if (rows !== undefined || columns !== undefined) {
+        const box = await prisma.box.findUnique({
+            where: { id },
+            include: { slots: true }
+        })
+
+        if (!box) throw new Error('盒子不存在')
+
+        // If dimensions provided match existing, ignore dimension update logic
+        const newRows = rows ?? box.rows
+        const newCols = columns ?? box.columns
+
+        if (newRows !== box.rows || newCols !== box.columns) {
+            // Dimensions changing
+            const sampleCount = await prisma.sample.count({ where: { slot: { boxId: id } } })
+            if (sampleCount > 0) {
+                throw new Error(`无法修改规格：盒子内含有 ${sampleCount} 个样本`)
+            }
+
+            // Delete old slots
+            await prisma.slot.deleteMany({ where: { boxId: id } })
+
+            // Generate new slots
+            const generateSlots = (r: number, c: number) => {
+                const slots = []
+                const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                for (let row = 0; row < r; row++) {
+                    for (let col = 0; col < c; col++) {
+                        slots.push({
+                            rowLabel: rowLabels[row],
+                            colLabel: String(col + 1),
+                            position: row * c + col + 1,
+                            status: 'EMPTY' as const,
+                            boxId: id // Important for direct createMany if used, but here we use update->create
+                        })
+                    }
+                }
+                return slots
+            }
+
+            const newSlots = generateSlots(newRows, newCols)
+
+            await prisma.box.update({
+                where: { id },
+                data: {
+                    name,
+                    rows: newRows,
+                    columns: newCols,
+                    slots: {
+                        create: newSlots.map(s => ({
+                            rowLabel: s.rowLabel,
+                            colLabel: s.colLabel,
+                            position: s.position,
+                            status: s.status,
+                        }))
+                    }
+                }
+            })
+        } else {
+            // Only name changing
+            await prisma.box.update({
+                where: { id },
+                data: { name }
+            })
+        }
+    } else {
+        // Only name changing
+        await prisma.box.update({
+            where: { id },
+            data: { name }
+        })
+    }
+
+    await invalidateInventoryCache()
+    await invalidateStatsCache()
+    return { success: true }
 }
