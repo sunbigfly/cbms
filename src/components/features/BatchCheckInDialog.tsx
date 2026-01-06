@@ -162,6 +162,11 @@ interface BatchCheckInDialogProps {
     slotLabels?: string[]  // 位置标签（如 A1, B2）
     boxRows?: number       // 盒子行数
     boxCols?: number       // 盒子列数  
+    locationInfo?: {
+        libraryName?: string
+        rackName?: string
+        boxName?: string
+    }
     onSuccess?: () => void
 }
 
@@ -335,6 +340,7 @@ export function BatchCheckInDialog({
     slotLabels,
     boxRows = 9,
     boxCols = 9,
+    locationInfo,
     onSuccess
 }: BatchCheckInDialogProps) {
     const { data: session } = useSession()
@@ -658,6 +664,7 @@ export function BatchCheckInDialog({
                                 cols={boxCols}
                                 selectedLabels={slotLabels || []}
                                 currentLabel={getLabel(startIndex)}
+                                locationInfo={locationInfo}
                             />
 
                             {/* 卡片列表 */}

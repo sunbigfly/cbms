@@ -177,6 +177,11 @@ interface BatchEditDialogProps {
     slotLabels?: string[]      // 位置标签
     boxRows?: number           // 盒子行数
     boxCols?: number           // 盒子列数
+    locationInfo?: {
+        libraryName?: string
+        rackName?: string
+        boxName?: string
+    }
     onSuccess?: () => void
 }
 
@@ -210,6 +215,7 @@ export function BatchEditDialog({
     slotLabels = [],
     boxRows = 9,
     boxCols = 9,
+    locationInfo,
     onSuccess
 }: BatchEditDialogProps) {
     const { data: session } = useSession()
@@ -466,6 +472,7 @@ export function BatchEditDialog({
                                         rows={boxRows}
                                         cols={boxCols}
                                         selectedLabels={slotLabels}
+                                        locationInfo={locationInfo}
                                     />
                                 )}
 
@@ -604,6 +611,7 @@ export function BatchEditDialog({
                                         cols={boxCols}
                                         selectedLabels={slotLabels}
                                         currentLabel={getLabel(startIndex)}
+                                        locationInfo={locationInfo}
                                     />
 
                                     {/* 卡片 */}

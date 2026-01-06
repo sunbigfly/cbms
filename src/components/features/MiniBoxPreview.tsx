@@ -8,9 +8,14 @@ interface MiniBoxPreviewProps {
     cols: number
     selectedLabels: string[]     // 所有被选中的位置标签
     currentLabel?: string        // 当前正在编辑的位置标签（可选）
+    locationInfo?: {
+        libraryName?: string
+        rackName?: string
+        boxName?: string
+    }
 }
 
-export function MiniBoxPreview({ rows, cols, selectedLabels, currentLabel }: MiniBoxPreviewProps) {
+export function MiniBoxPreview({ rows, cols, selectedLabels, currentLabel, locationInfo }: MiniBoxPreviewProps) {
     const rowLabels = Array.from({ length: rows }, (_, i) => String.fromCharCode(65 + i))
     const colLabels = Array.from({ length: cols }, (_, i) => i + 1)
 
@@ -21,8 +26,18 @@ export function MiniBoxPreview({ rows, cols, selectedLabels, currentLabel }: Min
         return 'empty'
     }
 
+    const getLocationString = () => {
+        if (!locationInfo) return null
+        const parts = [
+            locationInfo.libraryName,
+            locationInfo.rackName,
+            locationInfo.boxName
+        ].filter(Boolean)
+        return parts.join('-')
+    }
+
     return (
-        <div className="border rounded-lg p-2 bg-muted/30 flex-shrink-0">
+        <div className="border rounded-lg p-2 bg-muted/30 flex-shrink-0 flex flex-col items-center">
             <div className="text-[10px] text-muted-foreground text-center mb-1">
                 {currentLabel ? '当前位置' : '选中位置'}
             </div>
@@ -68,6 +83,11 @@ export function MiniBoxPreview({ rows, cols, selectedLabels, currentLabel }: Min
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* 位置信息 */}
+            <div className="mt-2 text-[10px] text-muted-foreground font-medium w-full text-center border-t border-dashed border-muted-foreground/30 pt-1">
+                {getLocationString() || '位置信息未获取'}
             </div>
         </div>
     )

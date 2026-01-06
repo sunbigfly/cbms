@@ -47,6 +47,11 @@ interface BatchCheckOutDialogProps {
     slotLabels?: string[]      // 位置标签
     boxRows?: number           // 盒子行数
     boxCols?: number           // 盒子列数
+    locationInfo?: {
+        libraryName?: string
+        rackName?: string
+        boxName?: string
+    }
     onSuccess?: () => void
 }
 
@@ -66,6 +71,7 @@ export function BatchCheckOutDialog({
     slotLabels = [],
     boxRows = 9,
     boxCols = 9,
+    locationInfo,
     onSuccess
 }: BatchCheckOutDialogProps) {
     const [loading, setLoading] = useState(false)
@@ -204,6 +210,7 @@ export function BatchCheckOutDialog({
                                 rows={boxRows}
                                 cols={boxCols}
                                 selectedLabels={slotLabels}
+                                locationInfo={locationInfo}
                             />
                         )}
 

@@ -1276,6 +1276,7 @@ export default function InventoryPage() {
                 </div>
             </div>
 
+
             {/* Batch Operation Dialogs */}
             <BatchCheckInDialog
                 open={checkInDialogOpen}
@@ -1284,6 +1285,11 @@ export default function InventoryPage() {
                 slotLabels={selectedSlotLabels}
                 boxRows={boxDetail?.rows}
                 boxCols={boxDetail?.columns}
+                locationInfo={{
+                    libraryName: selectedFacility?.name,
+                    rackName: selectedRack?.name,
+                    boxName: selectedBox?.name
+                }}
                 onSuccess={handleDialogSuccess}
             />
             <BatchCheckOutDialog
@@ -1293,6 +1299,11 @@ export default function InventoryPage() {
                 slotLabels={selectedSlotLabels}
                 boxRows={boxDetail?.rows}
                 boxCols={boxDetail?.columns}
+                locationInfo={{
+                    libraryName: selectedFacility?.name,
+                    rackName: selectedRack?.name,
+                    boxName: selectedBox?.name
+                }}
                 onSuccess={handleDialogSuccess}
             />
             <BatchEditDialog
@@ -1302,6 +1313,11 @@ export default function InventoryPage() {
                 slotLabels={selectedSlotLabels}
                 boxRows={boxDetail?.rows}
                 boxCols={boxDetail?.columns}
+                locationInfo={{
+                    libraryName: selectedFacility?.name,
+                    rackName: selectedRack?.name,
+                    boxName: selectedBox?.name
+                }}
                 onSuccess={handleDialogSuccess}
             />
 
