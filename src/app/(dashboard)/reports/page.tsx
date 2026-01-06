@@ -4,15 +4,31 @@ import { useState, useEffect } from 'react'
 import { Breadcrumbs } from '@/components/features/Breadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Download, Upload, BarChart3, PieChart, Loader2 } from 'lucide-react'
+import { Download, Upload, Loader2, TrendingUp, BarChart3 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { CSVImportDialog } from '@/components/features/CSVImportDialog'
-
-interface FacilityCapacity {
-    id: string
-    name: string
-    capacity: number
-}
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    BarChart,
+    Bar,
+    Legend,
+} from 'recharts'
 
 interface MonthlyStats {
     create: number
@@ -20,33 +36,67 @@ interface MonthlyStats {
     edit: number
 }
 
+interface ChartData {
+    name: string
+    value: number
+    [key: string]: string | number
+}
+
+interface TrendData {
+    date: string
+    入库: number
+    出库: number
+    编辑: number
+}
+
+interface ReportStats {
+    facilityDistribution: ChartData[]
+    typeDistribution: ChartData[]
+    passageDistribution: ChartData[]
+    ownerDistribution: ChartData[]
+    dailyTrends: TrendData[]
+}
+
+// 分布类型定义
+type DistributionType = 'facility' | 'type' | 'passage' | 'owner'
+
+const DISTRIBUTION_OPTIONS: { value: DistributionType; label: string; description: string }[] = [
+    { value: 'facility', label: '细胞库分布', description: '每个细胞库中的样本数量占比' },
+    { value: 'type', label: '样本类型分布', description: '不同细胞类型的样本数量' },
+    { value: 'passage', label: '代次分布', description: '不同代次(Passage)的样本数量' },
+    { value: 'owner', label: '所有者分布', description: '各实验员存放的样本数量' },
+]
+
+// 柔和的配色方案
+const COLORS = [
+    'hsl(221, 83%, 53%)',   // 蓝色
+    'hsl(142, 71%, 45%)',   // 绿色
+    'hsl(38, 92%, 50%)',    // 橙色
+    'hsl(262, 83%, 58%)',   // 紫色
+    'hsl(346, 77%, 50%)',   // 粉红
+    'hsl(199, 89%, 48%)',   // 青色
+    'hsl(43, 96%, 56%)',    // 黄色
+    'hsl(280, 67%, 52%)',   // 紫罗兰
+]
+
+const TREND_COLORS = {
+    入库: 'hsl(221, 83%, 53%)',
+    出库: 'hsl(346, 77%, 50%)',
+    编辑: 'hsl(38, 92%, 50%)',
+}
+
 export default function ReportsPage() {
     const { toast } = useToast()
     const [isExporting, setIsExporting] = useState(false)
     const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
     const [loading, setLoading] = useState(true)
-    const [facilities, setFacilities] = useState<FacilityCapacity[]>([])
     const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ create: 0, consume: 0, edit: 0 })
+    const [reportStats, setReportStats] = useState<ReportStats | null>(null)
+    const [selectedDistribution, setSelectedDistribution] = useState<DistributionType>('facility')
 
     useEffect(() => {
         async function fetchData() {
             try {
-                // Fetch facilities
-                const facilitiesRes = await fetch('/api/facilities')
-                if (facilitiesRes.ok) {
-                    const facilitiesData = await facilitiesRes.json()
-                    // Get stats for each facility
-                    const statsRes = await fetch('/api/stats')
-                    if (statsRes.ok) {
-                        const statsData = await statsRes.json()
-                        setFacilities(statsData.facilities?.map((f: { id: string; name: string; capacity: number }) => ({
-                            id: f.id,
-                            name: f.name,
-                            capacity: f.capacity,
-                        })) || [])
-                    }
-                }
-
                 // Fetch monthly stats from audit logs
                 const now = new Date()
                 const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -63,6 +113,13 @@ export default function ReportsPage() {
                         consume: thisMonthLogs.filter((l: { action: string }) => l.action === 'CONSUME').length,
                         edit: thisMonthLogs.filter((l: { action: string }) => l.action === 'UPDATE').length,
                     })
+                }
+
+                // Fetch report stats for charts
+                const statsRes = await fetch('/api/reports/stats')
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json()
+                    setReportStats(statsData)
                 }
             } catch (error) {
                 console.error('Failed to fetch reports data:', error)
@@ -81,12 +138,10 @@ export default function ReportsPage() {
                 throw new Error('导出失败')
             }
 
-            // Get the filename from Content-Disposition header or use default
             const contentDisposition = response.headers.get('Content-Disposition')
             const filenameMatch = contentDisposition?.match(/filename="(.+)"/)
             const filename = filenameMatch?.[1] || 'cbms_export.csv'
 
-            // Download the file
             const blob = await response.blob()
             const url = window.URL.createObjectURL(blob)
             const a = document.createElement('a')
@@ -152,12 +207,29 @@ export default function ReportsPage() {
         })
     }
 
-    const getCapacityColor = (index: number): string => {
-        const colors = ['bg-primary', 'bg-info', 'bg-success', 'bg-warning', 'bg-destructive']
-        return colors[index % colors.length]
+    const currentMonth = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })
+
+    // 获取当前选中的分布数据
+    const getDistributionData = (): ChartData[] => {
+        if (!reportStats) return []
+        switch (selectedDistribution) {
+            case 'facility':
+                return reportStats.facilityDistribution || []
+            case 'type':
+                return reportStats.typeDistribution || []
+            case 'passage':
+                return reportStats.passageDistribution || []
+            case 'owner':
+                return reportStats.ownerDistribution || []
+            default:
+                return []
+        }
     }
 
-    const currentMonth = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })
+    // 判断是否使用饼图（facility 和 type 用饼图，passage 和 owner 用柱状图）
+    const usePieChart = selectedDistribution === 'facility' || selectedDistribution === 'type'
+
+    const selectedOption = DISTRIBUTION_OPTIONS.find(opt => opt.value === selectedDistribution)
 
     if (loading) {
         return (
@@ -170,6 +242,9 @@ export default function ReportsPage() {
         )
     }
 
+    const totalSamples = reportStats?.facilityDistribution?.reduce((sum, item) => sum + item.value, 0) || 0
+    const distributionData = getDistributionData()
+
     return (
         <div className="container mx-auto px-4 py-6">
             <div className="mb-6">
@@ -181,76 +256,206 @@ export default function ReportsPage() {
                 <div>
                     <h1 className="text-2xl font-bold">报表</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        数据分析和导入导出功能
+                        数据分析和可视化统计
                     </p>
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Capacity Overview */}
+            <div className="space-y-6">
+                {/* Monthly Stats Summary */}
+                <div className="grid gap-4 md:grid-cols-4">
+                    <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">总样本数</p>
+                                    <p className="text-3xl font-bold text-primary">{totalSamples}</p>
+                                </div>
+                                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <BarChart3 className="h-6 w-6 text-primary" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">{currentMonth}入库</p>
+                                    <p className="text-3xl font-bold text-blue-500">{monthlyStats.create}</p>
+                                </div>
+                                <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                    <TrendingUp className="h-6 w-6 text-blue-500" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-rose-500/10 to-rose-500/5 border-rose-500/20">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">{currentMonth}出库</p>
+                                    <p className="text-3xl font-bold text-rose-500">{monthlyStats.consume}</p>
+                                </div>
+                                <div className="h-12 w-12 rounded-full bg-rose-500/20 flex items-center justify-center">
+                                    <TrendingUp className="h-6 w-6 text-rose-500 rotate-180" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">{currentMonth}编辑</p>
+                                    <p className="text-3xl font-bold text-amber-500">{monthlyStats.edit}</p>
+                                </div>
+                                <div className="h-12 w-12 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                    <BarChart3 className="h-6 w-6 text-amber-500" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Daily Trends Chart */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <PieChart className="h-5 w-5 text-primary" />
-                            容量概览
+                            <TrendingUp className="h-5 w-5 text-primary" />
+                            最近30天操作趋势
                         </CardTitle>
-                        <CardDescription>各细胞库存储使用情况</CardDescription>
+                        <CardDescription>每日入库、出库、编辑操作数量</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {facilities.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                暂无细胞库数据
-                            </div>
+                        {reportStats?.dailyTrends && reportStats.dailyTrends.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                                <AreaChart data={reportStats.dailyTrends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorCreate" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={TREND_COLORS.入库} stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor={TREND_COLORS.入库} stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorConsume" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={TREND_COLORS.出库} stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor={TREND_COLORS.出库} stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorUpdate" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={TREND_COLORS.编辑} stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor={TREND_COLORS.编辑} stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                    <XAxis dataKey="date" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Area type="monotone" dataKey="入库" stroke={TREND_COLORS.入库} fillOpacity={1} fill="url(#colorCreate)" strokeWidth={2} />
+                                    <Area type="monotone" dataKey="出库" stroke={TREND_COLORS.出库} fillOpacity={1} fill="url(#colorConsume)" strokeWidth={2} />
+                                    <Area type="monotone" dataKey="编辑" stroke={TREND_COLORS.编辑} fillOpacity={1} fill="url(#colorUpdate)" strokeWidth={2} />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         ) : (
-                            <div className="space-y-4">
-                                {facilities.map((item, index) => (
-                                    <div key={item.id}>
-                                        <div className="flex justify-between text-sm mb-1">
-                                            <span>{item.name}</span>
-                                            <span className="text-muted-foreground">{item.capacity}%</span>
-                                        </div>
-                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full ${getCapacityColor(index)} rounded-full transition-all`}
-                                                style={{ width: `${item.capacity}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
+                            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                                暂无操作记录
                             </div>
                         )}
                     </CardContent>
                 </Card>
 
-                {/* Monthly Stats */}
+                {/* Distribution Chart with Dropdown */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <BarChart3 className="h-5 w-5 text-primary" />
-                            本月统计
-                        </CardTitle>
-                        <CardDescription>{currentMonth}操作统计</CardDescription>
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                            <div>
+                                <CardTitle className="flex items-center gap-2">
+                                    <BarChart3 className="h-5 w-5 text-primary" />
+                                    样本分布统计
+                                </CardTitle>
+                                <CardDescription className="mt-1">
+                                    {selectedOption?.description}
+                                </CardDescription>
+                            </div>
+                            <Select value={selectedDistribution} onValueChange={(v) => setSelectedDistribution(v as DistributionType)}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="选择分布类型" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {DISTRIBUTION_OPTIONS.map(option => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="p-4 rounded-lg bg-primary/10">
-                                <p className="text-2xl font-bold text-primary">{monthlyStats.create}</p>
-                                <p className="text-sm text-muted-foreground">入库</p>
+                        {distributionData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={350}>
+                                {usePieChart ? (
+                                    <PieChart>
+                                        <Pie
+                                            data={distributionData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            outerRadius={120}
+                                            innerRadius={60}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                            animationDuration={500}
+                                            label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+                                        >
+                                            {distributionData.map((_entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend formatter={(value) => <span className="text-sm">{value}</span>} />
+                                    </PieChart>
+                                ) : (
+                                    <BarChart
+                                        data={distributionData}
+                                        layout={selectedDistribution === 'owner' ? 'vertical' : 'horizontal'}
+                                        margin={{ top: 10, right: 30, left: selectedDistribution === 'owner' ? 80 : 0, bottom: 0 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                        {selectedDistribution === 'owner' ? (
+                                            <>
+                                                <XAxis type="number" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                                <YAxis type="category" dataKey="name" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} width={75} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <XAxis dataKey="name" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                                            </>
+                                        )}
+                                        <Tooltip />
+                                        <Bar
+                                            dataKey="value"
+                                            name="样本数"
+                                            fill="hsl(221, 83%, 53%)"
+                                            radius={selectedDistribution === 'owner' ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+                                            animationDuration={500}
+                                        />
+                                    </BarChart>
+                                )}
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+                                暂无样本数据
                             </div>
-                            <div className="p-4 rounded-lg bg-destructive/10">
-                                <p className="text-2xl font-bold text-destructive">{monthlyStats.consume}</p>
-                                <p className="text-sm text-muted-foreground">出库</p>
-                            </div>
-                            <div className="p-4 rounded-lg bg-info/10">
-                                <p className="text-2xl font-bold text-info">{monthlyStats.edit}</p>
-                                <p className="text-sm text-muted-foreground">编辑</p>
-                            </div>
-                        </div>
+                        )}
                     </CardContent>
                 </Card>
 
                 {/* Import/Export */}
-                <Card className="md:col-span-2">
+                <Card>
                     <CardHeader>
                         <CardTitle>数据导入导出</CardTitle>
                         <CardDescription>批量操作和数据备份</CardDescription>
