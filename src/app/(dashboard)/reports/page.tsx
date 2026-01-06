@@ -333,7 +333,7 @@ export default function ReportsPage() {
                         </CardHeader>
                         <CardContent>
                             {reportStats?.dailyTrends && reportStats.dailyTrends.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={300}>
+                                <ResponsiveContainer width="100%" height={220}>
                                     <AreaChart data={reportStats.dailyTrends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorCreate" x1="0" y1="0" x2="0" y2="1">
@@ -360,7 +360,7 @@ export default function ReportsPage() {
                                     </AreaChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                                <div className="h-[220px] flex items-center justify-center text-muted-foreground">
                                     暂无操作记录
                                 </div>
                             )}
@@ -396,7 +396,7 @@ export default function ReportsPage() {
                         </CardHeader>
                         <CardContent>
                             {distributionData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={350}>
+                                <ResponsiveContainer width="100%" height={220}>
                                     {usePieChart ? (
                                         <PieChart>
                                             <Pie
@@ -404,8 +404,8 @@ export default function ReportsPage() {
                                                 cx="50%"
                                                 cy="50%"
                                                 labelLine={false}
-                                                outerRadius={120}
-                                                innerRadius={60}
+                                                outerRadius={75}
+                                                innerRadius={45}
                                                 fill="#8884d8"
                                                 dataKey="value"
                                                 animationDuration={500}
@@ -448,7 +448,7 @@ export default function ReportsPage() {
                                     )}
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+                                <div className="h-[220px] flex items-center justify-center text-muted-foreground">
                                     暂无样本数据
                                 </div>
                             )}
