@@ -58,6 +58,8 @@ interface RackDetail {
     name: string
     code: string
     occupancy: number
+    total: number
+    used: number
 }
 
 interface ShelfDetail {
@@ -65,6 +67,8 @@ interface ShelfDetail {
     name: string
     order: number
     occupancy: number
+    total: number
+    used: number
 }
 
 interface Facility {
@@ -85,6 +89,8 @@ interface Rack {
     totalShelves: number
     shelves: ShelfDetail[]
     occupancy: number
+    total: number
+    used: number
 }
 
 interface BoxInfo {
@@ -148,8 +154,8 @@ function ChildProgressBar({
     items,
     onItemClick
 }: {
-    items: { id: string; name: string; occupancy: number }[]
-    onItemClick: (item: { id: string; name: string; occupancy: number }) => void
+    items: { id: string; name: string; occupancy: number; total?: number; used?: number }[]
+    onItemClick: (item: { id: string; name: string; occupancy: number; total?: number; used?: number }) => void
 }) {
     if (!items || items.length === 0) return null
 
@@ -169,7 +175,7 @@ function ChildProgressBar({
                         </TooltipTrigger>
                         <TooltipContent>
                             <p className="font-medium">{item.name}</p>
-                            <p className="text-xs">{item.occupancy}% 已用</p>
+                            <p className="text-xs">{item.used ?? '-'}/{item.total ?? '-'} 已用</p>
                         </TooltipContent>
                     </Tooltip>
                 ))}
@@ -516,7 +522,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                         <div className="w-3 h-3 rounded-sm bg-blue-50 border border-blue-500" />
                         <span>拖拽选中</span>
                     </div>
-                    <span className="border-l pl-3 ml-1">|
+                    <span className="pl-3 ml-1">
                         <kbd className="ml-2 px-1 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd> 多选
                         <kbd className="ml-2 px-1 py-0.5 bg-muted rounded text-[10px]">Shift</kbd> 块选
                         <span className="ml-2 text-blue-600">拖拽框选</span>
@@ -977,7 +983,7 @@ export default function InventoryPage() {
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <Badge variant={selectedFacility?.id === facility.id ? 'secondary' : 'outline'}>{facility.capacity}%</Badge>
+                                                        <Badge variant={selectedFacility?.id === facility.id ? 'secondary' : 'outline'}>{facility.usedSlots}/{facility.totalSlots}</Badge>
                                                         <ChevronRight className="h-4 w-4" />
                                                     </div>
                                                 </div>
@@ -1015,7 +1021,7 @@ export default function InventoryPage() {
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <Badge variant={selectedRack?.id === rack.id ? 'secondary' : 'outline'}>{rack.occupancy}%</Badge>
+                                                        <Badge variant={selectedRack?.id === rack.id ? 'secondary' : 'outline'}>{rack.used}/{rack.total}</Badge>
                                                         <ChevronRight className="h-4 w-4" />
                                                     </div>
                                                 </div>

@@ -143,6 +143,8 @@ export async function GET(request: NextRequest) {
                         name: shelf.name,
                         order: shelf.order,
                         occupancy: shelfTotal > 0 ? Math.round((shelfUsed / shelfTotal) * 100) : 0,
+                        total: shelfTotal,
+                        used: shelfUsed,
                         boxes: boxesDetail,
                     }
                 })
@@ -154,6 +156,8 @@ export async function GET(request: NextRequest) {
                     totalShelves: rack.totalShelves,
                     shelves: shelvesDetail,
                     occupancy: total > 0 ? Math.round((occupied / total) * 100) : 0,
+                    total,
+                    used: occupied,
                 }
             })
             return NextResponse.json({ racks: racksWithStats })
@@ -239,6 +243,8 @@ export async function GET(request: NextRequest) {
                     name: rack.name,
                     code: rack.code,
                     occupancy: rackTotal > 0 ? Math.round((rackUsed / rackTotal) * 100) : 0,
+                    total: rackTotal,
+                    used: rackUsed,
                 }
             })
 
