@@ -416,13 +416,13 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
             <Card className="w-full max-w-md shadow-xl">
                 {error && (
-                    <Alert variant="destructive" className="m-4 mb-0">
+                    <Alert variant="destructive" className="m-4 mb-0 w-auto">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>{error}</AlertDescription>
                     </Alert>
                 )}
                 {success && (
-                    <Alert className="m-4 mb-0 border-green-200 bg-green-50 text-green-800">
+                    <Alert className="m-4 mb-0 border-green-200 bg-green-50 text-green-800 w-auto">
                         <CheckCircle2 className="h-4 w-4" />
                         <AlertDescription>{success}</AlertDescription>
                     </Alert>

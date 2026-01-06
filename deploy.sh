@@ -22,21 +22,27 @@ read_input() {
     local prompt="$1"
     local default="$2"
     local var_name="$3"
-    
+    local input_val # 使用局部变量防止污染
+
     if [ -n "$default" ]; then
         echo -ne "${YELLOW}$prompt [${default}]: ${NC}"
-        read input
-        if [ -z "$input" ]; then
-            eval $var_name="$default"
+        read input_val
+        if [ -z "$input_val" ]; then
+            eval $var_name="\$default"
         else
-            eval $var_name="$input"
+            eval $var_name="\$input_val"
         fi
     else
         echo -ne "${YELLOW}$prompt: ${NC}"
-        read input
-        eval $var_name="$input"
+        read input_val
+        eval $var_name="\$input_val"
     fi
 }
+
+
+
+# 4. 生成配置文件
+info "正在生成 .env 配置文件..."
 
 # 欢迎语
 clear
@@ -134,15 +140,24 @@ else
 fi
 echo ""
 
-# --- 安全配置 ---
-echo "--- 🛡️ 安全验证配置 ---"
-info "正在为您生成随机的 NextAuth Secret..."
+# --- 认证配置 ---
+echo "--- 🛡️ 认证与安全配置 ---"
+read_input "应用部署 URL (NEXTAUTH_URL)" "http://localhost:3000" APP_URL
+
+info "正在生成候选 NextAuth Secret..."
 if command -v openssl &> /dev/null; then
-    NEXTAUTH_SECRET=$(openssl rand -base64 32)
+    AUTO_SECRET=$(openssl rand -base64 32)
 else
-    NEXTAUTH_SECRET="cbms-secret-$(date +%s%N | sha256sum | head -c 32)"
+    AUTO_SECRET="cbms-secret-$(date +%s%N | sha256sum | head -c 32)"
 fi
-success "密钥生成完成"
+echo -e "生成的随机密钥: ${GREEN}${AUTO_SECRET}${NC}"
+
+read_input "是否使用此密钥? (y/n)" "y" CONFIRM_SECRET
+if [[ "$CONFIRM_SECRET" =~ ^[Yy]$ ]]; then
+    NEXTAUTH_SECRET="$AUTO_SECRET"
+else
+    read_input "请输入您的 NextAuth Secret (至少32位字符)" "" NEXTAUTH_SECRET
+fi
 echo ""
 
 # --- 管理员初始化 ---
@@ -157,10 +172,50 @@ echo ""
 # --- 高级安全配置 ---
 echo "--- 🔐 高级安全配置 ---"
 info "配置用于敏感操作（如重置用户密码）的超级密钥"
-read_input "超级管理员密码" "ssyf2026_change_this" SUPER_PWD
+read_input "超级管理员密码" "ssyf2026" SUPER_PWD
 echo ""
 
-# 3. 生成配置文件
+# 3. 配置汇总与确认
+echo ""
+echo "=================================================="
+echo "=================================================="
+echo "               配置汇总确认                       "
+echo "=================================================="
+echo "[Database]"
+echo "  - Host: ${DB_HOST}:${DB_PORT}"
+echo "  - Name: ${DB_NAME}"
+echo "  - User: ${DB_USER}"
+echo "  - Pass: ${DB_PASSWORD}"
+echo ""
+echo "[Redis]"
+if [[ "$ENABLE_REDIS" =~ ^[Yy]$ ]]; then
+    echo "  - Status: 已启用"
+    echo "  - Host:   ${REDIS_HOST}:${REDIS_PORT}"
+    echo "  - Pass:   ${REDIS_PASSWORD:-<无>}"
+else
+    echo "  - Status: 未启用"
+fi
+echo ""
+echo "[App & Auth]"
+echo "  - URL:    ${APP_URL}"
+echo "  - Secret: ${NEXTAUTH_SECRET:0:10}..."
+echo ""
+echo "[Admin Initial]"
+echo "  - ID:     ${ADMIN_ID}"
+echo "  - Email:  ${ADMIN_EMAIL}"
+echo "  - Pass:   ${ADMIN_PWD}"
+echo ""
+echo "[Security]"
+echo "  - SuperPWD: ${SUPER_PWD}"
+echo "=================================================="
+read_input "确认以上配置并生成文件? (y/n)" "y" CONFIRM_CONFIG
+
+if [[ ! "$CONFIRM_CONFIG" =~ ^[Yy]$ ]]; then
+    warn "已取消操作"
+    exit 0
+fi
+
+# 4. 生成配置文件
 info "正在生成 .env 配置文件..."
 
 if [ -f .env ]; then
@@ -179,12 +234,11 @@ DATABASE_URL="${DB_URL}"
 ${REDIS_URL:+REDIS_URL="${REDIS_URL}"}
 
 # NextAuth
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="${APP_URL}"
 NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
 
 # Init Seed
 ADMIN_EMPLOYEE_ID="${ADMIN_ID}"
-ADMIN_PASSWORD="${ADMIN_PWD}"
 ADMIN_PASSWORD="${ADMIN_PWD}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
 
