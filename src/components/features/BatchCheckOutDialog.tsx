@@ -72,14 +72,51 @@ export function BatchCheckOutDialog({
 
     // Only update loadedSamples when sampleIds actually changes (not on every render)
     const sampleIdsKey = sampleIds.join(',')
+
     useEffect(() => {
+        let isMounted = true
+
         if (open && samples.length === 0 && sampleIds.length > 0) {
-            // TODO: Fetch sample details from API if needed
-            setLoadedSamples(sampleIds.map(id => ({ id, name: `样本 ${id.slice(-4)}`, type: '未知' })))
+            setLoading(true)
+            fetch(`/api/samples?ids=${sampleIds.join(',')}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (isMounted) {
+                        if (Array.isArray(data)) {
+                            // Map API response to SampleInfo format
+                            const fetchedSamples = data.map((s: any) => ({
+                                id: s.id,
+                                name: s.name || '未命名样本',
+                                type: s.type || '未知类型',
+                                slotPosition: s.slot ? `${s.slot.rowLabel}${s.slot.colLabel}` : undefined
+                            }))
+                            setLoadedSamples(fetchedSamples)
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to fetch sample details:', err)
+                    // Fallback to basic info if fetch fails
+                    if (isMounted) {
+                        setLoadedSamples(sampleIds.map(id => ({
+                            id,
+                            name: `样本 ${id.slice(-4)}`,
+                            type: '未知'
+                        })))
+                    }
+                })
+                .finally(() => {
+                    if (isMounted) setLoading(false)
+                })
         }
+
         // Reset when dialog closes
         if (!open) {
             setLoadedSamples([])
+        }
+
+        return () => {
+            isMounted = false
         }
     }, [open, sampleIdsKey]) // Use sampleIdsKey instead of samples/sampleIds to avoid loops
 
@@ -104,13 +141,13 @@ export function BatchCheckOutDialog({
                     sampleIds,
                     reason,
                     notes,
-                    userId: 'system', // TODO: get from auth
                 }),
             })
 
             if (!response.ok) {
                 const data = await response.json()
-                throw new Error(data.error || '出库失败')
+                const errorMessage = data.details ? `${data.error}: ${data.details}` : (data.error || '出库失败')
+                throw new Error(errorMessage)
             }
 
             onSuccess?.()

@@ -221,6 +221,13 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
         () => setShowMixedError(true)
     )
 
+    // Clear selection when box data updates (e.g. after refresh)
+    const occupiedCount = box?.slots.filter(s => s.status === 'OCCUPIED').length
+    useEffect(() => {
+        clearSelection()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [box?.id, occupiedCount])
+
     // Note: onSelectionChange callback removed to prevent infinite render loop
     // Selection state is used directly by action button handlers instead
 
@@ -340,7 +347,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
         }
 
         return isOccupied
-            ? 'bg-primary border-primary/50 hover:bg-primary/80'
+            ? 'bg-primary text-primary-foreground border-primary/50 hover:bg-primary/80'
             : 'bg-muted border-border hover:bg-accent'
     }
 
@@ -439,9 +446,18 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect }: BoxGrid
                                                 }}
                                                 onMouseDown={(e) => handleDragStart(rowIndex, colIndex, e)}
                                                 onMouseEnter={() => handleDragMove(rowIndex, colIndex)}
-                                                className={`w-10 h-10 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center text-xs font-medium ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag)}`}
+                                                className={`w-10 h-10 rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center p-0.5 break-all text-center font-medium overflow-hidden ${(() => {
+                                                    const name = slot?.sample?.name || ''
+                                                    const len = name.length
+                                                    if (len <= 2) return 'text-sm'
+                                                    if (len <= 3) return 'text-xs'
+                                                    if (len <= 5) return 'text-[10px] leading-3'
+                                                    if (len <= 8) return 'text-[9px] leading-none'
+                                                    return 'text-[8px] leading-none tracking-tight'
+                                                })()
+                                                    } ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag)}`}
                                             >
-                                                {isOccupied && slot?.sample?.name?.slice(0, 2)}
+                                                {isOccupied && slot?.sample?.name}
                                             </button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="max-w-[200px]">
@@ -543,10 +559,22 @@ export default function InventoryPage() {
     }
 
     const handleDialogSuccess = () => {
-        // Refresh box detail after any operation
-        if (selectedBox) {
-            fetchBoxDetail(selectedBox.id)
-        }
+        // Refresh everything to update counts and statuses
+        if (selectedFacility) fetchRacks(selectedFacility.id)
+        if (selectedRack) fetchBoxes(selectedRack.id)
+        if (selectedBox) fetchBoxDetail(selectedBox.id)
+
+        // Also refresh facilities list to update high-level stats
+        const privateParam = libraryMode === 'private' ? '?private=true' : ''
+        fetch(`/api/inventory${privateParam}`)
+            .then(res => res.json())
+            .then(data => setFacilities(data.facilities || []))
+
+        // Clear selections
+        setSelectedSlotIds([])
+        setSelectedSampleIds([])
+        // Note: We don't clear selectedSlots in BoxGrid here as it requires prop drilling or context
+        // Instead, BoxGrid effects will handle it when boxDetail updates
     }
 
     // State for detail panel

@@ -44,16 +44,26 @@ export async function GET(request: NextRequest) {
         ])
 
         return NextResponse.json({
-            logs: logs.map(log => ({
-                id: log.id,
-                action: log.action,
-                sample: log.sample?.name || 'Unknown',
-                user: log.user?.name || 'System',
-                description: log.description,
-                timestamp: log.timestamp,
-                previousData: log.previousData,
-                newData: log.newData,
-            })),
+            logs: logs.map(log => {
+                // 当样本已被删除时（如出库操作），从 previousData 中获取样本名称
+                let sampleName = log.sample?.name
+                if (!sampleName && log.previousData) {
+                    const prevData = log.previousData as Record<string, unknown>
+                    if (prevData.name && typeof prevData.name === 'string') {
+                        sampleName = prevData.name
+                    }
+                }
+                return {
+                    id: log.id,
+                    action: log.action,
+                    sample: sampleName || 'Unknown',
+                    user: log.user?.name || 'System',
+                    description: log.description,
+                    timestamp: log.timestamp,
+                    previousData: log.previousData,
+                    newData: log.newData,
+                }
+            }),
             total,
             limit,
             offset,

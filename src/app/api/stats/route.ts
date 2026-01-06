@@ -106,14 +106,24 @@ export async function GET() {
                 weeklyCheckIns,
                 capacityPercent: totalSlots > 0 ? Math.round((occupiedSlots / totalSlots) * 100) : 0,
             },
-            recentActivities: recentActivities.map(log => ({
-                id: log.id,
-                action: log.action,
-                sample: log.sample?.name || 'Unknown',
-                description: log.description,
-                user: log.user?.name || 'System',
-                timestamp: log.timestamp,
-            })),
+            recentActivities: recentActivities.map(log => {
+                // 当样本已被删除时（如出库操作），从 previousData 中获取样本名称
+                let sampleName = log.sample?.name
+                if (!sampleName && log.previousData) {
+                    const prevData = log.previousData as Record<string, unknown>
+                    if (prevData.name && typeof prevData.name === 'string') {
+                        sampleName = prevData.name
+                    }
+                }
+                return {
+                    id: log.id,
+                    action: log.action,
+                    sample: sampleName || 'Unknown',
+                    description: log.description,
+                    user: log.user?.name || 'System',
+                    timestamp: log.timestamp,
+                }
+            }),
             facilities: facilitiesWithStats,
         })
     } catch (error) {

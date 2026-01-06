@@ -22,13 +22,13 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_collapsed'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 
-// 从 cookie 读取初始值（客户端）
-function getInitialCollapsed(): boolean {
+// 从 cookie 读取值（仅客户端使用）
+function getCollapsedFromCookie(): boolean {
     if (typeof document === 'undefined') return false
     const match = document.cookie.match(new RegExp(`(^| )${SIDEBAR_COOKIE_NAME}=([^;]+)`))
     return match ? match[2] === 'true' : false
@@ -48,8 +48,21 @@ export function SideNav() {
     const router = useRouter()
     const { data: session, status } = useSession()
 
-    // 使用 cookie 持久化收起/展开状态，初始值从 cookie 读取
-    const [collapsed, setCollapsedState] = useState(getInitialCollapsed)
+    // 使用 cookie 持久化收起/展开状态
+    // 初始值固定为 false 以避免 hydration 不匹配，mount 后从 cookie 读取
+    const [collapsed, setCollapsedState] = useState(false)
+    // 追踪是否已完成首次 mount，用于禁用初始过渡动画
+    const [mounted, setMounted] = useState(false)
+
+    // 客户端 mount 后从 cookie 读取真实状态
+    useEffect(() => {
+        const savedValue = getCollapsedFromCookie()
+        setCollapsedState(savedValue)
+        // 使用 requestAnimationFrame 确保状态更新后再启用动画
+        requestAnimationFrame(() => {
+            setMounted(true)
+        })
+    }, [])
 
     // 包装 setCollapsed 以同时更新 cookie
     const setCollapsed = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
@@ -79,7 +92,8 @@ export function SideNav() {
         <TooltipProvider delayDuration={0}>
             <aside
                 className={cn(
-                    'sticky top-0 h-screen flex flex-col border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-300',
+                    'sticky top-0 h-screen flex flex-col border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
+                    mounted && 'transition-all duration-300',
                     collapsed ? 'w-16' : 'w-56'
                 )}
             >
@@ -90,7 +104,8 @@ export function SideNav() {
                 )}>
                     <FlaskConical className="h-6 w-6 text-primary flex-shrink-0" />
                     <span className={cn(
-                        "font-semibold text-lg whitespace-nowrap transition-all duration-300",
+                        "font-semibold text-lg whitespace-nowrap",
+                        mounted && "transition-all duration-300",
                         collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
                     )}>
                         CBMS
@@ -117,7 +132,8 @@ export function SideNav() {
                             >
                                 <Icon className="h-5 w-5 flex-shrink-0" />
                                 <span className={cn(
-                                    'whitespace-nowrap transition-all duration-300',
+                                    'whitespace-nowrap',
+                                    mounted && 'transition-all duration-300',
                                     collapsed ? 'w-0 opacity-0 ml-0' : 'w-auto opacity-100 ml-3'
                                 )}>
                                     {item.label}
@@ -154,7 +170,8 @@ export function SideNav() {
                                 {userInitial}
                             </div>
                             <div className={cn(
-                                "flex-1 min-w-0 transition-all duration-300",
+                                "flex-1 min-w-0",
+                                mounted && "transition-all duration-300",
                                 collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
                             )}>
                                 <p className="text-sm font-medium truncate">{userName}</p>
@@ -212,7 +229,8 @@ export function SideNav() {
                     >
                         <ChevronLeft className={cn("h-4 w-4 transition-transform duration-300 flex-shrink-0", collapsed && "rotate-180")} />
                         <span className={cn(
-                            "whitespace-nowrap transition-all duration-300",
+                            "whitespace-nowrap",
+                            mounted && "transition-all duration-300",
                             collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
                         )}>
                             收起
