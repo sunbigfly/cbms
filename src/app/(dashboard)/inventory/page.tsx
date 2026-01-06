@@ -1,6 +1,5 @@
 'use client'
 
-import { AppLayout } from '@/components/features/AppLayout'
 import { Breadcrumbs } from '@/components/features/Breadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -767,196 +766,191 @@ export default function InventoryPage() {
 
     if (loading) {
         return (
-            <AppLayout>
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-            </AppLayout>
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
         )
     }
 
     return (
-        <AppLayout>
+        <div className="container mx-auto px-4 py-6">
+            <div className="mb-6 flex items-center justify-between">
+                <Breadcrumbs />
+                <LibrarySwitch value={libraryMode} onChange={setLibraryMode} />
+            </div>
 
-            <div className="container mx-auto px-4 py-6">
-                <div className="mb-6 flex items-center justify-between">
-                    <Breadcrumbs />
-                    <LibrarySwitch value={libraryMode} onChange={setLibraryMode} />
+            {/* Two Column Layout: Left Navigation + Right Grid */}
+            <div className="grid gap-6 lg:grid-cols-12">
+
+                {/* LEFT: Tab Navigation */}
+                <div className="lg:col-span-3">
+                    <Card className="h-full">
+                        <Tabs value={currentLevel} onValueChange={(v) => setCurrentLevel(v as NavigationLevel)}>
+                            <CardHeader className="pb-0">
+                                <TabsList className="w-full">
+                                    <TabsTrigger value="facility" className="flex-1 gap-1">
+                                        <Building2 className="h-4 w-4" />
+                                        细胞库
+                                    </TabsTrigger>
+                                    <TabsTrigger value="rack" className="flex-1 gap-1" disabled={!selectedFacility}>
+                                        <LayoutGrid className="h-4 w-4" />
+                                        扇/提
+                                    </TabsTrigger>
+                                    <TabsTrigger value="box" className="flex-1 gap-1" disabled={!selectedRack}>
+                                        <Package className="h-4 w-4" />
+                                        盒子
+                                    </TabsTrigger>
+                                </TabsList>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                                {/* Facility List */}
+                                <TabsContent value="facility" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
+                                    {facilities.length === 0 ? (
+                                        <div className="text-center py-8 text-sm text-muted-foreground">暂无细胞库</div>
+                                    ) : (
+                                        facilities.map((facility) => (
+                                            <div
+                                                key={facility.id}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => handleFacilityClick(facility)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleFacilityClick(facility)}
+                                                className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedFacility?.id === facility.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-medium text-sm">{facility.name}</p>
+                                                        <p className={`text-xs ${selectedFacility?.id === facility.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                            {facility.type} | {facility.racks} 扇/提
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant={selectedFacility?.id === facility.id ? 'secondary' : 'outline'}>{facility.capacity}%</Badge>
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </div>
+                                                </div>
+                                                {facility.racksDetail && (
+                                                    <ChildProgressBar items={facility.racksDetail} onItemClick={handleRackBarClick} />
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </TabsContent>
+
+                                {/* Rack List */}
+                                <TabsContent value="rack" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
+                                    <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
+                                        {selectedFacility?.name}
+                                    </div>
+                                    {racks.length === 0 ? (
+                                        <div className="text-center py-8 text-sm text-muted-foreground">暂无扇/提</div>
+                                    ) : (
+                                        racks.map((rack) => (
+                                            <div
+                                                key={rack.id}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => handleRackClick(rack)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleRackClick(rack)}
+                                                className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedRack?.id === rack.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-medium text-sm">{rack.name}</p>
+                                                        <p className={`text-xs ${selectedRack?.id === rack.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                            {rack.totalShelves} 层
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant={selectedRack?.id === rack.id ? 'secondary' : 'outline'}>{rack.occupancy}%</Badge>
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </div>
+                                                </div>
+                                                {rack.shelves && (
+                                                    <ChildProgressBar items={rack.shelves} onItemClick={(shelf) => handleShelfBarClick(shelf, rack.id)} />
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </TabsContent>
+
+                                {/* Box List */}
+                                <TabsContent value="box" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
+                                    <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
+                                        {selectedFacility?.name} &gt; {selectedRack?.name}
+                                    </div>
+                                    {boxes.length === 0 ? (
+                                        <div className="text-center py-8 text-sm text-muted-foreground">暂无盒子</div>
+                                    ) : (
+                                        boxes.map((box) => (
+                                            <button
+                                                key={box.id}
+                                                onClick={() => handleBoxClick(box)}
+                                                className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedBox?.id === box.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-medium text-sm">{box.name}</span>
+                                                    <Badge variant={selectedBox?.id === box.id ? 'secondary' : 'outline'}>
+                                                        {box.occupied}/{box.total}
+                                                    </Badge>
+                                                </div>
+                                                <div className="mt-2 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full ${getOccupancyColor(Math.round(box.occupied / box.total * 100))}`}
+                                                        style={{ width: `${Math.round(box.occupied / box.total * 100)}%` }}
+                                                    />
+                                                </div>
+                                            </button>
+                                        ))
+                                    )}
+                                </TabsContent>
+                            </CardContent>
+                        </Tabs>
+                    </Card>
                 </div>
 
-                {/* Two Column Layout: Left Navigation + Right Grid */}
-                <div className="grid gap-6 lg:grid-cols-12">
-
-                    {/* LEFT: Tab Navigation */}
-                    <div className="lg:col-span-3">
-                        <Card className="h-full">
-                            <Tabs value={currentLevel} onValueChange={(v) => setCurrentLevel(v as NavigationLevel)}>
-                                <CardHeader className="pb-0">
-                                    <TabsList className="w-full">
-                                        <TabsTrigger value="facility" className="flex-1 gap-1">
-                                            <Building2 className="h-4 w-4" />
-                                            细胞库
-                                        </TabsTrigger>
-                                        <TabsTrigger value="rack" className="flex-1 gap-1" disabled={!selectedFacility}>
-                                            <LayoutGrid className="h-4 w-4" />
-                                            扇/提
-                                        </TabsTrigger>
-                                        <TabsTrigger value="box" className="flex-1 gap-1" disabled={!selectedRack}>
-                                            <Package className="h-4 w-4" />
-                                            盒子
-                                        </TabsTrigger>
-                                    </TabsList>
-                                </CardHeader>
-                                <CardContent className="pt-4">
-                                    {/* Facility List */}
-                                    <TabsContent value="facility" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
-                                        {facilities.length === 0 ? (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无细胞库</div>
-                                        ) : (
-                                            facilities.map((facility) => (
-                                                <div
-                                                    key={facility.id}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    onClick={() => handleFacilityClick(facility)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleFacilityClick(facility)}
-                                                    className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedFacility?.id === facility.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <p className="font-medium text-sm">{facility.name}</p>
-                                                            <p className={`text-xs ${selectedFacility?.id === facility.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                                {facility.type} | {facility.racks} 扇/提
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant={selectedFacility?.id === facility.id ? 'secondary' : 'outline'}>{facility.capacity}%</Badge>
-                                                            <ChevronRight className="h-4 w-4" />
-                                                        </div>
-                                                    </div>
-                                                    {facility.racksDetail && (
-                                                        <ChildProgressBar items={facility.racksDetail} onItemClick={handleRackBarClick} />
-                                                    )}
-                                                </div>
-                                            ))
-                                        )}
-                                    </TabsContent>
-
-                                    {/* Rack List */}
-                                    <TabsContent value="rack" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
-                                        <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
-                                            {selectedFacility?.name}
-                                        </div>
-                                        {racks.length === 0 ? (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无扇/提</div>
-                                        ) : (
-                                            racks.map((rack) => (
-                                                <div
-                                                    key={rack.id}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    onClick={() => handleRackClick(rack)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleRackClick(rack)}
-                                                    className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedRack?.id === rack.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <p className="font-medium text-sm">{rack.name}</p>
-                                                            <p className={`text-xs ${selectedRack?.id === rack.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                                {rack.totalShelves} 层
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant={selectedRack?.id === rack.id ? 'secondary' : 'outline'}>{rack.occupancy}%</Badge>
-                                                            <ChevronRight className="h-4 w-4" />
-                                                        </div>
-                                                    </div>
-                                                    {rack.shelves && (
-                                                        <ChildProgressBar items={rack.shelves} onItemClick={(shelf) => handleShelfBarClick(shelf, rack.id)} />
-                                                    )}
-                                                </div>
-                                            ))
-                                        )}
-                                    </TabsContent>
-
-                                    {/* Box List */}
-                                    <TabsContent value="box" className="mt-0 space-y-2 max-h-[500px] overflow-y-auto">
-                                        <div className="text-xs text-muted-foreground mb-2 pb-2 border-b">
-                                            {selectedFacility?.name} &gt; {selectedRack?.name}
-                                        </div>
-                                        {boxes.length === 0 ? (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">暂无盒子</div>
-                                        ) : (
-                                            boxes.map((box) => (
-                                                <button
-                                                    key={box.id}
-                                                    onClick={() => handleBoxClick(box)}
-                                                    className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedBox?.id === box.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="font-medium text-sm">{box.name}</span>
-                                                        <Badge variant={selectedBox?.id === box.id ? 'secondary' : 'outline'}>
-                                                            {box.occupied}/{box.total}
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="mt-2 h-1.5 bg-muted/50 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full ${getOccupancyColor(Math.round(box.occupied / box.total * 100))}`}
-                                                            style={{ width: `${Math.round(box.occupied / box.total * 100)}%` }}
-                                                        />
-                                                    </div>
-                                                </button>
-                                            ))
-                                        )}
-                                    </TabsContent>
-                                </CardContent>
-                            </Tabs>
-                        </Card>
-                    </div>
-
-                    {/* CENTER: Box Grid */}
-                    <div className="lg:col-span-6">
-                        <Card className="h-full">
-                            <CardHeader className="pb-3">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-base">{selectedBox?.name || '盒子网格'}</CardTitle>
-                                        {selectedBox && (
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {selectedBox.rows}×{selectedBox.columns} | {selectedBox.occupied}/{selectedBox.total} 槽位
-                                            </p>
-                                        )}
-                                    </div>
+                {/* CENTER: Box Grid */}
+                <div className="lg:col-span-6">
+                    <Card className="h-full">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-base">{selectedBox?.name || '盒子网格'}</CardTitle>
                                     {selectedBox && (
-                                        <Badge variant="outline">
-                                            {Math.round(selectedBox.occupied / selectedBox.total * 100)}% 已用
-                                        </Badge>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            {selectedBox.rows}×{selectedBox.columns} | {selectedBox.occupied}/{selectedBox.total} 槽位
+                                        </p>
                                     )}
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <BoxGrid
-                                    box={boxDetail}
-                                    onCheckIn={handleCheckIn}
-                                    onCheckOut={handleCheckOut}
-                                    onEdit={handleEdit}
-                                    onSampleSelect={handleSampleSelect}
-                                />
-                            </CardContent>
-                        </Card>
-                    </div>
+                                {selectedBox && (
+                                    <Badge variant="outline">
+                                        {Math.round(selectedBox.occupied / selectedBox.total * 100)}% 已用
+                                    </Badge>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <BoxGrid
+                                box={boxDetail}
+                                onCheckIn={handleCheckIn}
+                                onCheckOut={handleCheckOut}
+                                onEdit={handleEdit}
+                                onSampleSelect={handleSampleSelect}
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
 
-                    {/* FAR RIGHT: Sample Detail Panel */}
-                    <div className="lg:col-span-3">
-                        <SlotDetailPanel
-                            sample={selectedSample}
-                            slotPosition={selectedSlotPosition}
-                            batchGroupCount={batchGroupCount}
-                        />
-                    </div>
+                {/* FAR RIGHT: Sample Detail Panel */}
+                <div className="lg:col-span-3">
+                    <SlotDetailPanel
+                        sample={selectedSample}
+                        slotPosition={selectedSlotPosition}
+                        batchGroupCount={batchGroupCount}
+                    />
                 </div>
             </div>
 
@@ -979,6 +973,6 @@ export default function InventoryPage() {
                 sampleIds={selectedSampleIds}
                 onSuccess={handleDialogSuccess}
             />
-        </AppLayout>
+        </div>
     )
 }
