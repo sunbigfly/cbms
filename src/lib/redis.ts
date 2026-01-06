@@ -5,12 +5,13 @@ import Redis from 'ioredis'
 
 const globalForRedis = globalThis as unknown as {
     redis: Redis | undefined
+    redisInitialized: boolean | undefined
 }
 
 const redisUrl = process.env.REDIS_URL
 
-// Redis is optional - warn if not configured
-if (!redisUrl) {
+// Redis is optional - warn if not configured (only warn once)
+if (!redisUrl && !globalForRedis.redisInitialized) {
     console.warn('[Redis] REDIS_URL not configured - running without cache')
 }
 
@@ -26,8 +27,8 @@ export const redis = redisUrl
     }))
     : null
 
-// 连接错误处理
-if (redis) {
+// 连接错误处理 - 只在首次初始化时注册事件监听器
+if (redis && !globalForRedis.redisInitialized) {
     redis.on('error', (err) => {
         console.error('Redis connection error:', err.message)
     })
@@ -39,6 +40,9 @@ if (redis) {
     if (process.env.NODE_ENV !== 'production') {
         globalForRedis.redis = redis
     }
+
+    // 标记为已初始化
+    globalForRedis.redisInitialized = true
 }
 
 export default redis
