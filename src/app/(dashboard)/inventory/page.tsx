@@ -513,8 +513,8 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                                                     fontSize: (() => {
                                                         const name = slot?.sample?.name || ''
                                                         const len = name.length
-                                                        const maxFontSize = Math.max(8, cellSize * 0.40)
-                                                        const minFontSize = Math.max(5, cellSize * 0.25)
+                                                        const maxFontSize = Math.max(8, cellSize * 0.35)
+                                                        const minFontSize = Math.max(5, cellSize * 0.20)
                                                         const maxLen = 6
                                                         if (len > maxLen) return minFontSize
                                                         const t = (len - 1) / (maxLen - 1)
