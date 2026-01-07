@@ -396,16 +396,16 @@ export default function ReportsPage() {
                         </CardHeader>
                         <CardContent>
                             {distributionData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={220}>
+                                <ResponsiveContainer width="100%" height={260}>
                                     {usePieChart ? (
-                                        <PieChart>
+                                        <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                                             <Pie
                                                 data={distributionData}
                                                 cx="50%"
-                                                cy="50%"
+                                                cy="45%"
                                                 labelLine={false}
-                                                outerRadius={75}
-                                                innerRadius={45}
+                                                outerRadius={70}
+                                                innerRadius={42}
                                                 fill="#8884d8"
                                                 dataKey="value"
                                                 animationDuration={500}
