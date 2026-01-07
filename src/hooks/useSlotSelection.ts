@@ -29,6 +29,9 @@ export interface SlotInfo {
 
 export type SelectionType = 'empty' | 'occupied' | 'mixed' | null
 
+// Choice for mixed selection
+export type MixedSelectionChoice = 'samples' | 'empty' | 'cancel'
+
 interface UseSlotSelectionReturn {
     selectedSlots: Set<string>
     selectionType: SelectionType
@@ -46,6 +49,10 @@ interface UseSlotSelectionReturn {
     handleDragMove: (row: number, col: number) => void
     handleDragEnd: () => void
     isInDragSelection: (row: number, col: number) => boolean
+    // Mixed selection dialog
+    showMixedChoiceDialog: boolean
+    pendingMixedSlots: { occupied: SlotInfo[]; empty: SlotInfo[] } | null
+    handleMixedChoice: (choice: MixedSelectionChoice) => void
 }
 
 /**
@@ -54,7 +61,7 @@ interface UseSlotSelectionReturn {
 export function useSlotSelection(
     slots: SlotInfo[],
     columns: number,
-    onMixedSelectionError?: () => void
+    onMixedSelectionError?: () => void // Keep for backward compatibility
 ): UseSlotSelectionReturn {
     const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set())
     const [lastClickedPosition, setLastClickedPosition] = useState<number | null>(null)
@@ -63,6 +70,10 @@ export function useSlotSelection(
     const [isDragging, setIsDragging] = useState(false)
     const [dragStartPos, setDragStartPos] = useState<{ row: number; col: number } | null>(null)
     const [dragEndPos, setDragEndPos] = useState<{ row: number; col: number } | null>(null)
+
+    // Mixed selection choice dialog state
+    const [showMixedChoiceDialog, setShowMixedChoiceDialog] = useState(false)
+    const [pendingMixedSlots, setPendingMixedSlots] = useState<{ occupied: SlotInfo[]; empty: SlotInfo[]; append: boolean } | null>(null)
 
     // Build slot map for quick lookup
     const slotMap = useMemo(() => {
@@ -103,7 +114,43 @@ export function useSlotSelection(
         return (currentType === 'empty' && newIsOccupied) || (currentType === 'occupied' && !newIsOccupied)
     }, [])
 
-    // Select a rectangular range (for Shift+click)
+    // Handle mixed selection choice
+    const handleMixedChoice = useCallback((choice: MixedSelectionChoice) => {
+        if (!pendingMixedSlots) {
+            setShowMixedChoiceDialog(false)
+            return
+        }
+
+        if (choice === 'cancel') {
+            setShowMixedChoiceDialog(false)
+            setPendingMixedSlots(null)
+            return
+        }
+
+        const slotsToSelect = choice === 'samples' ? pendingMixedSlots.occupied : pendingMixedSlots.empty
+
+        if (pendingMixedSlots.append) {
+            // Append mode: add to existing selection (only if compatible)
+            setSelectedSlots(prev => {
+                const newSet = new Set(prev)
+                slotsToSelect.forEach(s => newSet.add(s.id))
+                return newSet
+            })
+        } else {
+            // Replace mode
+            setSelectedSlots(new Set(slotsToSelect.map(s => s.id)))
+        }
+
+        // Update last clicked position
+        if (slotsToSelect.length > 0) {
+            setLastClickedPosition(slotsToSelect[Math.floor(slotsToSelect.length / 2)]?.position ?? null)
+        }
+
+        setShowMixedChoiceDialog(false)
+        setPendingMixedSlots(null)
+    }, [pendingMixedSlots])
+
+    // Select a rectangular range (for Shift+click) - NOW APPENDS to existing selection
     const selectRange = useCallback((startPos: number, endPos: number, allSlots: SlotInfo[], cols: number) => {
         // Convert positions to row/col
         const startRow = Math.floor((startPos - 1) / cols)
@@ -126,18 +173,53 @@ export function useSlotSelection(
             }
         }
 
-        // Check for mixed types
-        const hasEmpty = rangeSlots.some(s => s.status !== 'OCCUPIED')
-        const hasOccupied = rangeSlots.some(s => s.status === 'OCCUPIED')
+        // Separate by type
+        const occupiedSlots = rangeSlots.filter(s => s.status === 'OCCUPIED')
+        const emptySlots = rangeSlots.filter(s => s.status !== 'OCCUPIED')
+        const hasEmpty = emptySlots.length > 0
+        const hasOccupied = occupiedSlots.length > 0
 
+        // Mixed selection: select ALL slots (both types) and show choice UI
         if (hasEmpty && hasOccupied) {
-            onMixedSelectionError?.()
+            // Check if already have a selection of one type
+            if (selectedSlots.size > 0 && selectionType && selectionType !== 'mixed') {
+                // Append only compatible slots to existing selection
+                const compatibleSlots = selectionType === 'occupied' ? occupiedSlots : emptySlots
+                if (compatibleSlots.length > 0) {
+                    setSelectedSlots(prev => {
+                        const newSet = new Set(prev)
+                        compatibleSlots.forEach(s => newSet.add(s.id))
+                        return newSet
+                    })
+                }
+            } else {
+                // Select ALL slots (both occupied and empty) and show choice buttons
+                setSelectedSlots(new Set(rangeSlots.map(s => s.id)))
+                setPendingMixedSlots({ occupied: occupiedSlots, empty: emptySlots, append: false })
+                setShowMixedChoiceDialog(true)
+            }
             return
         }
 
-        // Apply selection
-        setSelectedSlots(new Set(rangeSlots.map(s => s.id)))
-    }, [slotMap, onMixedSelectionError])
+        // No mixed selection - append to existing (if compatible type)
+        if (selectedSlots.size > 0 && selectionType && selectionType !== 'mixed') {
+            const rangeType = hasOccupied ? 'occupied' : 'empty'
+            if (selectionType !== rangeType) {
+                // Select ALL and let user choose
+                setSelectedSlots(new Set(rangeSlots.map(s => s.id)))
+                setPendingMixedSlots({ occupied: occupiedSlots, empty: emptySlots, append: false })
+                setShowMixedChoiceDialog(true)
+                return
+            }
+        }
+
+        // Append selection
+        setSelectedSlots(prev => {
+            const newSet = new Set(prev)
+            rangeSlots.forEach(s => newSet.add(s.id))
+            return newSet
+        })
+    }, [slotMap, selectedSlots, selectionType])
 
     // Handle slot click with modifiers
     const handleSlotClick = useCallback((slot: SlotInfo, event: React.MouseEvent) => {
@@ -255,13 +337,26 @@ export function useSlotSelection(
         // Determine if we should append to existing selection
         const isAppend = event?.ctrlKey || event?.metaKey || event?.shiftKey
 
-        // Analyze the new range
-        const rangeHasEmpty = rangeSlots.some(s => s.status !== 'OCCUPIED')
-        const rangeHasOccupied = rangeSlots.some(s => s.status === 'OCCUPIED')
+        // Separate by type
+        const occupiedSlots = rangeSlots.filter(s => s.status === 'OCCUPIED')
+        const emptySlots = rangeSlots.filter(s => s.status !== 'OCCUPIED')
+        const rangeHasEmpty = emptySlots.length > 0
+        const rangeHasOccupied = occupiedSlots.length > 0
 
-        // Check for mixed types within the new range itself
+        // Mixed selection: select ALL slots and show choice UI
         if (rangeHasEmpty && rangeHasOccupied) {
-            onMixedSelectionError?.()
+            // Select ALL slots (both types) and show choice buttons
+            if (isAppend) {
+                setSelectedSlots(prev => {
+                    const newSet = new Set(prev)
+                    rangeSlots.forEach(s => newSet.add(s.id))
+                    return newSet
+                })
+            } else {
+                setSelectedSlots(new Set(rangeSlots.map(s => s.id)))
+            }
+            setPendingMixedSlots({ occupied: occupiedSlots, empty: emptySlots, append: isAppend || false })
+            setShowMixedChoiceDialog(true)
             setIsDragging(false)
             setDragStartPos(null)
             setDragEndPos(null)
@@ -273,8 +368,14 @@ export function useSlotSelection(
         // If appending, check against existing selection
         if (isAppend && selectedSlots.size > 0 && selectionType) {
             if (selectionType !== 'mixed' && selectionType !== rangeType) {
-                // Trying to append different type
-                onMixedSelectionError?.()
+                // Mixed types - select all and show choice
+                setSelectedSlots(prev => {
+                    const newSet = new Set(prev)
+                    rangeSlots.forEach(s => newSet.add(s.id))
+                    return newSet
+                })
+                setPendingMixedSlots({ occupied: occupiedSlots, empty: emptySlots, append: true })
+                setShowMixedChoiceDialog(true)
                 setIsDragging(false)
                 setDragStartPos(null)
                 setDragEndPos(null)
@@ -300,7 +401,7 @@ export function useSlotSelection(
         setIsDragging(false)
         setDragStartPos(null)
         setDragEndPos(null)
-    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, onMixedSelectionError, selectedSlots, selectionType, handleSlotClick])
+    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, selectedSlots, selectionType])
 
     // Check if a cell is in the current drag selection area
     const isInDragSelection = useCallback((row: number, col: number) => {
@@ -329,5 +430,9 @@ export function useSlotSelection(
         handleDragMove,
         handleDragEnd,
         isInDragSelection,
+        // Mixed selection dialog
+        showMixedChoiceDialog,
+        pendingMixedSlots: pendingMixedSlots ? { occupied: pendingMixedSlots.occupied, empty: pendingMixedSlots.empty } : null,
+        handleMixedChoice,
     }
 }

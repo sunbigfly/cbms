@@ -25,7 +25,7 @@ import {
     Pencil,
 } from 'lucide-react'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useSlotSelection, SlotInfo, SelectionType } from '@/hooks/useSlotSelection'
+import { useSlotSelection, SlotInfo, SelectionType, MixedSelectionChoice } from '@/hooks/useSlotSelection'
 
 // Cookie 常量
 const LIBRARY_MODE_COOKIE = 'library_mode'
@@ -197,7 +197,6 @@ interface BoxGridProps {
 }
 
 function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMatchedSlotIds }: BoxGridProps) {
-    const [showMixedError, setShowMixedError] = useState(false)
 
     // Convert slots to SlotInfo format
     const slotsInfo: SlotInfo[] = useMemo(() => {
@@ -240,10 +239,13 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
         handleDragMove,
         handleDragEnd,
         isInDragSelection,
+        // Mixed selection dialog
+        showMixedChoiceDialog,
+        pendingMixedSlots,
+        handleMixedChoice,
     } = useSlotSelection(
         slotsInfo,
-        box?.columns || 0,
-        () => setShowMixedError(true)
+        box?.columns || 0
     )
 
     // Clear selection when box data updates (e.g. after refresh)
@@ -252,6 +254,23 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
         clearSelection()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [box?.id, occupiedCount])
+
+    // ESC key to clear selection and cancel mixed choice
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (showMixedChoiceDialog) {
+                    handleMixedChoice('cancel')
+                }
+                // Always clear selection when pressing ESC
+                if (selectedSlots.size > 0) {
+                    clearSelection()
+                }
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [selectedSlots.size, clearSelection, showMixedChoiceDialog, handleMixedChoice])
 
     // Note: onSelectionChange callback removed to prevent infinite render loop
     // Selection state is used directly by action button handlers instead
@@ -303,13 +322,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedSlots, selectionType]) // Intentionally limited deps
 
-    // Hide mixed error after 3 seconds
-    useEffect(() => {
-        if (showMixedError) {
-            const timer = setTimeout(() => setShowMixedError(false), 3000)
-            return () => clearTimeout(timer)
-        }
-    }, [showMixedError])
+
 
     // Handle action buttons
     const handleCheckInClick = () => {
@@ -412,16 +425,9 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
 
     return (
         <div className="p-4">
-            {/* Mixed selection error toast */}
-            {showMixedError && (
-                <div className="mb-3 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
-                    无法同时选择空闲和已占用的槽位
-                </div>
-            )}
-
-            {/* Action Bar */}
-            <div className="mb-3 pb-2 border-b">
-                <div className="flex items-center gap-2 flex-wrap">
+            {/* Action Bar - fixed single line with scroll */}
+            <div className="mb-3 pb-2 border-b overflow-x-auto">
+                <div className="flex items-center gap-2 flex-nowrap min-w-0">
                     <Button
                         size="sm"
                         variant={selectionType === 'empty' ? 'default' : 'outline'}
@@ -450,10 +456,26 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                         编辑 {selectionType === 'occupied' && selectedSlots.size > 0 && `(${selectedSlots.size})`}
                     </Button>
 
-                    {selectedSlots.size > 0 && (
-                        <Button size="sm" variant="ghost" onClick={clearSelection}>
-                            清除选择
-                        </Button>
+                    {/* Mixed selection choice buttons - show when both types selected */}
+                    {showMixedChoiceDialog && pendingMixedSlots && (
+                        <>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-yellow-100 border-yellow-500 text-yellow-700 hover:bg-yellow-200"
+                                onClick={() => handleMixedChoice('samples')}
+                            >
+                                样本 ({pendingMixedSlots.occupied.length})
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="bg-green-100 border-green-500 text-green-700 hover:bg-green-200"
+                                onClick={() => handleMixedChoice('empty')}
+                            >
+                                空槽 ({pendingMixedSlots.empty.length})
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
@@ -588,7 +610,7 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                     </span>
                 </div>
             </div>
-        </div>
+        </div >
     )
 }
 

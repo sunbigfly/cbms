@@ -76,8 +76,8 @@ export function SlotDetailPanel({
                     <p className="text-sm text-muted-foreground">{sample.type}</p>
                 </div>
 
-                {/* Batch Group Warning */}
-                {batchGroupCount > 0 && (
+                {/* Batch Group Warning - only show if there are OTHER same-batch samples */}
+                {batchGroupCount > 1 && (
                     <div className="flex items-start gap-2 px-3 py-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md text-sm">
                         <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
                         <div>
