@@ -147,7 +147,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">仪表盘</h1>
           <p className="text-muted-foreground mt-1">
-            细胞银行管理系统 - 概览
+            细胞库管理系统 - 概览
           </p>
         </div>
         <div className="flex gap-2">
