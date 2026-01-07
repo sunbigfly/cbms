@@ -507,21 +507,26 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                                                 }}
                                                 onMouseDown={(e) => handleDragStart(rowIndex, colIndex, e)}
                                                 onMouseEnter={() => handleDragMove(rowIndex, colIndex)}
-                                                style={{ width: cellSize, height: cellSize }}
-                                                className={`rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center p-0.5 break-all text-center font-medium overflow-hidden ${(() => {
-                                                    const name = slot?.sample?.name || ''
-                                                    const len = name.length
-                                                    // 根据格子大小和名称长度动态调整字体
-                                                    const baseFontSize = Math.max(7, cellSize * 0.28)
-                                                    if (len <= 2) return `text-[${Math.round(baseFontSize + 4)}px]`
-                                                    if (len <= 3) return `text-[${Math.round(baseFontSize + 2)}px]`
-                                                    if (len <= 5) return `text-[${Math.round(baseFontSize)}px] leading-3`
-                                                    if (len <= 8) return `text-[${Math.round(baseFontSize - 1)}px] leading-none`
-                                                    return `text-[${Math.round(baseFontSize - 2)}px] leading-none tracking-tight`
-                                                })()
-                                                    } ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag, isFilterMatch)}`}
+                                                style={{
+                                                    width: cellSize,
+                                                    height: cellSize,
+                                                    fontSize: (() => {
+                                                        const name = slot?.sample?.name || ''
+                                                        const len = name.length
+                                                        const maxFontSize = Math.max(8, cellSize * 0.30)
+                                                        const minFontSize = Math.max(5, cellSize * 0.14)
+                                                        const maxLen = 6
+                                                        if (len > maxLen) return minFontSize
+                                                        const t = (len - 1) / (maxLen - 1)
+                                                        return Math.round(maxFontSize - t * (maxFontSize - minFontSize))
+                                                    })(),
+                                                    lineHeight: 1.1,
+                                                    letterSpacing: (slot?.sample?.name?.length || 0) > 6 ? '-0.03em' : 'normal',
+                                                    wordBreak: 'break-all',
+                                                }}
+                                                className={`rounded-md border transition-all hover:scale-110 hover:z-10 flex items-center justify-center p-0.5 text-center font-medium overflow-hidden ${getSlotStyle(slot, isSlotSelected, isBatchMember, isInDrag, isFilterMatch)}`}
                                             >
-                                                {isOccupied && slot?.sample?.name}
+                                                <span className="line-clamp-3 max-w-full">{isOccupied && slot?.sample?.name}</span>
                                             </button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="max-w-[200px]">

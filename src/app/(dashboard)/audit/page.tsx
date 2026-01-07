@@ -120,7 +120,7 @@ export default function AuditPage() {
         try {
             const params = new URLSearchParams({
                 limit: '0',
-                libraryMode: isAdmin ? libraryMode : 'public',
+                libraryMode: libraryMode,
             })
             const res = await fetch(`/api/audit?${params}`)
             if (res.ok) {
@@ -349,26 +349,24 @@ export default function AuditPage() {
                             <CardTitle>操作日志</CardTitle>
                             <CardDescription>共 {totalCount} 条记录</CardDescription>
                         </div>
-                        {/* 管理员：公共库/私有库切换按钮 */}
-                        {isAdmin && (
-                            <ToggleGroup
-                                type="single"
-                                value={libraryMode}
-                                onValueChange={(value) => {
-                                    if (value) setLibraryMode(value as 'public' | 'private')
-                                }}
-                                className="border rounded-md"
-                            >
-                                <ToggleGroupItem value="public" aria-label="公共库" className="gap-1.5 px-3">
-                                    <Globe className="h-4 w-4" />
-                                    公共库
-                                </ToggleGroupItem>
-                                <ToggleGroupItem value="private" aria-label="私有库" className="gap-1.5 px-3">
-                                    <Lock className="h-4 w-4" />
-                                    私有库
-                                </ToggleGroupItem>
-                            </ToggleGroup>
-                        )}
+                        {/* 公共库/私有库切换按钮 - 所有用户可用 */}
+                        <ToggleGroup
+                            type="single"
+                            value={libraryMode}
+                            onValueChange={(value) => {
+                                if (value) setLibraryMode(value as 'public' | 'private')
+                            }}
+                            className="border rounded-md"
+                        >
+                            <ToggleGroupItem value="public" aria-label="公共库" className="gap-1.5 px-3">
+                                <Globe className="h-4 w-4" />
+                                公共库
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="private" aria-label="私有库" className="gap-1.5 px-3">
+                                <Lock className="h-4 w-4" />
+                                私有库
+                            </ToggleGroupItem>
+                        </ToggleGroup>
                     </div>
                 </CardHeader>
                 <CardContent>
