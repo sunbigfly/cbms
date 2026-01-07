@@ -359,6 +359,38 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
         }
     }
 
+    // Get slot style based on status, selection, batch group, drag state, and filter match
+    // Memoized style map for better performance
+    // NOTE: This useCallback MUST be placed before any conditional return to comply with React Hooks rules
+    const getSlotStyle = useCallback((slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean, isInDrag: boolean, isFilterMatch: boolean) => {
+        const isOccupied = slot?.status === 'OCCUPIED'
+
+        // Drag selection preview (blue border)
+        if (isInDrag && !isSlotSelected) {
+            return 'bg-blue-50 border-1 border-blue-500'
+        }
+
+        // Batch group member (red border) - highest priority for non-selected
+        if (isBatchMember && !isSlotSelected) {
+            return 'bg-red-50 border-1 border-red-500'
+        }
+
+        if (isSlotSelected) {
+            return isOccupied
+                ? 'bg-yellow-100 border-1 border-yellow-500'
+                : 'bg-green-100 border-1 border-green-500'
+        }
+
+        // Filter match (purple) - highlight matched samples
+        if (isFilterMatch && isOccupied) {
+            return 'bg-blue-100 text-blue-900 border-1 border-blue-500 hover:bg-blue-200'
+        }
+
+        return isOccupied
+            ? 'bg-primary text-primary-foreground border-primary/50 hover:bg-primary/80'
+            : 'bg-muted border-border hover:bg-accent'
+    }, [])
+
     if (!box) {
         return (
             <div className="flex items-center justify-center h-full min-h-[400px] text-muted-foreground">
@@ -391,37 +423,6 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
     // 对应的行标签宽度和列标签高度
     const labelWidth = Math.max(16, Math.round(cellSize * 0.55))
     const headerHeight = Math.max(16, Math.round(cellSize * 0.55))
-
-    // Get slot style based on status, selection, batch group, drag state, and filter match
-    // Memoized style map for better performance
-    const getSlotStyle = useCallback((slot: Slot | undefined, isSlotSelected: boolean, isBatchMember: boolean, isInDrag: boolean, isFilterMatch: boolean) => {
-        const isOccupied = slot?.status === 'OCCUPIED'
-
-        // Drag selection preview (blue border)
-        if (isInDrag && !isSlotSelected) {
-            return 'bg-blue-50 border-1 border-blue-500'
-        }
-
-        // Batch group member (red border) - highest priority for non-selected
-        if (isBatchMember && !isSlotSelected) {
-            return 'bg-red-50 border-1 border-red-500'
-        }
-
-        if (isSlotSelected) {
-            return isOccupied
-                ? 'bg-yellow-100 border-1 border-yellow-500'
-                : 'bg-green-100 border-1 border-green-500'
-        }
-
-        // Filter match (purple) - highlight matched samples
-        if (isFilterMatch && isOccupied) {
-            return 'bg-blue-100 text-blue-900 border-1 border-blue-500 hover:bg-blue-200'
-        }
-
-        return isOccupied
-            ? 'bg-primary text-primary-foreground border-primary/50 hover:bg-primary/80'
-            : 'bg-muted border-border hover:bg-accent'
-    }, [])
 
     return (
         <div className="p-4">
