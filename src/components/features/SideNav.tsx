@@ -13,6 +13,9 @@ import {
     LogOut,
     PanelLeftClose,
     PanelLeftOpen,
+    Info,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -215,27 +218,44 @@ export function SideNav() {
                         </Button>
                     )}
 
+                    {/* About Link */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn('w-full', collapsed ? 'justify-center px-0 gap-0' : 'justify-start px-2')}
+                                asChild
+                            >
+                                <Link href="/about">
+                                    <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                    <span className={cn(
+                                        "text-muted-foreground whitespace-nowrap overflow-hidden",
+                                        mounted && "transition-all duration-300",
+                                        collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
+                                    )}>
+                                        关于系统
+                                    </span>
+                                </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        {collapsed && <TooltipContent side="right">关于系统</TooltipContent>}
+                    </Tooltip>
+
                     <div className="h-px bg-border/50 my-1 mx-2" />
 
-                    {/* Collapse Toggle */}
+                    {/* Collapse Toggle - Floating on border */}
                     <Button
                         variant="ghost"
-                        size="sm"
-                        className={cn('w-full', collapsed ? 'justify-center px-0 gap-0' : 'justify-start px-2')}
+                        size="icon"
+                        className="absolute -right-3 top-6 z-50 h-6 w-6 rounded-full border bg-background shadow-sm hover:bg-accent"
                         onClick={() => setCollapsed(!collapsed)}
                     >
                         {collapsed ? (
-                            <PanelLeftOpen className="h-4 w-4 text-muted-foreground transition-transform duration-300 flex-shrink-0" />
+                            <ChevronRight className="h-3 w-3" />
                         ) : (
-                            <PanelLeftClose className="h-4 w-4 text-muted-foreground transition-transform duration-300 flex-shrink-0" />
+                            <ChevronLeft className="h-3 w-3" />
                         )}
-                        <span className={cn(
-                            "text-muted-foreground whitespace-nowrap overflow-hidden",
-                            mounted && "transition-all duration-300",
-                            collapsed ? "w-0 opacity-0 ml-0" : "w-auto opacity-100 ml-2"
-                        )}>
-                            收起导航
-                        </span>
                     </Button>
                 </div>
             </aside>
