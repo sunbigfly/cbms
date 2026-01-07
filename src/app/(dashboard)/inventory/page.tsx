@@ -1171,14 +1171,14 @@ export default function InventoryPage() {
                                                     className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${selectedFacility?.id === facility.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
                                                         }`}
                                                 >
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1 min-w-0">
                                                             <p className="font-medium text-sm">{facility.name}</p>
-                                                            <p className={`text-xs ${selectedFacility?.id === facility.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                            <p className={`text-xs mt-1 ${selectedFacility?.id === facility.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                                                 {facility.type} | {facility.racks} 扇/提
                                                             </p>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                                                             <Badge
                                                                 variant={selectedFacility?.id === facility.id ? 'secondary' : 'outline'}
                                                                 className={filterMatchCount !== null ? 'bg-blue-100 text-blue-700 border-blue-300' : ''}
