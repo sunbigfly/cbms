@@ -284,10 +284,11 @@ function BoxGrid({ box, onCheckIn, onCheckOut, onEdit, onSampleSelect, filterMat
                 setBatchGroupSlotIds(new Set(matchingSlotIds))
 
                 // Notify parent of selected sample
+                // batchGroupCount = matchingSlotIds.length + 1 (include the selected sample itself)
                 onSampleSelect?.(
                     selectedSlot.sample,
                     `${selectedSlot.rowLabel}${selectedSlot.colLabel}`,
-                    matchingSlotIds
+                    [...matchingSlotIds, selectedId] // Include selected sample in count
                 )
             } else {
                 setBatchGroupSlotIds(new Set())
