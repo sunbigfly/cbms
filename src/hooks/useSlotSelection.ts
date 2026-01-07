@@ -213,13 +213,19 @@ export function useSlotSelection(
             }
         }
 
+        // Not a mixed selection - clear any pending mixed choice
+        if (showMixedChoiceDialog) {
+            setShowMixedChoiceDialog(false)
+            setPendingMixedSlots(null)
+        }
+
         // Append selection
         setSelectedSlots(prev => {
             const newSet = new Set(prev)
             rangeSlots.forEach(s => newSet.add(s.id))
             return newSet
         })
-    }, [slotMap, selectedSlots, selectionType])
+    }, [slotMap, selectedSlots, selectionType, showMixedChoiceDialog])
 
     // Handle slot click with modifiers
     const handleSlotClick = useCallback((slot: SlotInfo, event: React.MouseEvent) => {
@@ -257,10 +263,14 @@ export function useSlotSelection(
             return
         }
 
-        // Normal click: single select
+        // Normal click: single select - clear any pending mixed choice
+        if (showMixedChoiceDialog) {
+            setShowMixedChoiceDialog(false)
+            setPendingMixedSlots(null)
+        }
         setSelectedSlots(new Set([slot.id]))
         setLastClickedPosition(slot.position)
-    }, [lastClickedPosition, selectRange, slots, columns, selectionType, wouldCreateMixedSelection, onMixedSelectionError])
+    }, [lastClickedPosition, selectRange, slots, columns, selectionType, wouldCreateMixedSelection, onMixedSelectionError, showMixedChoiceDialog])
 
     // Clear all selections
     const clearSelection = useCallback(() => {
@@ -383,6 +393,12 @@ export function useSlotSelection(
             }
         }
 
+        // Not a mixed selection - clear any pending mixed choice
+        if (showMixedChoiceDialog) {
+            setShowMixedChoiceDialog(false)
+            setPendingMixedSlots(null)
+        }
+
         // Apply selection
         if (isAppend) {
             setSelectedSlots(prev => {
@@ -401,7 +417,7 @@ export function useSlotSelection(
         setIsDragging(false)
         setDragStartPos(null)
         setDragEndPos(null)
-    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, selectedSlots, selectionType])
+    }, [isDragging, dragStartPos, dragEndPos, columns, slotMap, selectedSlots, selectionType, showMixedChoiceDialog])
 
     // Check if a cell is in the current drag selection area
     const isInDragSelection = useCallback((row: number, col: number) => {
