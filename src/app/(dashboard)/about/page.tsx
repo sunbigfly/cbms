@@ -118,12 +118,12 @@ export default function AboutPage() {
     return (
         <div className="container mx-auto px-6 max-w-6xl h-[calc(100vh-2rem)] relative flex flex-col">
 
-            {/* 核心内容区：pt-16 上移 */}
-            <div className="flex-1 flex flex-col pt-16">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            {/* 核心内容区：pt-8 上移 */}
+            <div className="flex-1 flex flex-col pt-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-                    {/* 左侧：叙事 */}
-                    <div className="lg:col-span-5 flex flex-col animate-in slide-in-from-left-4 duration-700">
+                    {/* 左侧：叙事 - 向右靠拢 */}
+                    <div className="lg:col-span-6 lg:col-start-2 flex flex-col animate-in slide-in-from-left-4 duration-700">
                         <div className="mb-10 space-y-4">
                             <div className="inline-flex items-center gap-2 rounded-full border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground w-fit">
                                 <span className="relative flex h-2 w-2">
@@ -184,7 +184,7 @@ export default function AboutPage() {
                     </div>
 
                     {/* 右侧：悬浮卡片 */}
-                    <div className="lg:col-span-7 flex justify-center lg:justify-end pt-12 animate-in slide-in-from-right-4 duration-1000 delay-200">
+                    <div className="lg:col-span-5 flex justify-center lg:justify-start pt-4 animate-in slide-in-from-right-4 duration-1000 delay-200">
                         <RefinedFeatureCard />
                     </div>
                 </div>

@@ -1,0 +1,6 @@
+{
+    "regions": [
+        "hkg1"
+    ],
+    "buildCommand": "pnpm run vercel-build"
+}

@@ -54,7 +54,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 export async function cacheSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     if (!redis) return
     try {
-        await redis.setex(key, ttlSeconds, JSON.stringify(value))
+        await redis.set(key, JSON.stringify(value), { ex: ttlSeconds })
     } catch (error) {
         console.error(`Cache set error for key ${key}:`, error)
     }
@@ -78,14 +78,10 @@ export async function cacheDel(key: string): Promise<void> {
 export async function cacheInvalidatePattern(pattern: string): Promise<void> {
     if (!redis) return
     try {
-        let cursor = '0'
-        do {
-            const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
-            cursor = nextCursor
-            if (keys.length > 0) {
-                await redis.del(...keys)
-            }
-        } while (cursor !== '0')
+        const keys = await redis.keys(pattern)
+        if (keys.length > 0) {
+            await redis.del(keys)
+        }
     } catch (error) {
         console.error(`Cache invalidate pattern error for ${pattern}:`, error)
     }

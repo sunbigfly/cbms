@@ -1,0 +1,15 @@
+# Ignore local environment files
+.env
+.env.local
+.env.development
+.env.production.local
+
+# Ignore development database
+*.db
+*.sqlite
+
+# Ignore IDE and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
