@@ -35,13 +35,20 @@ export const CACHE_TTL = {
 
 /**
  * 获取缓存值
+ * 注意: Upstash 会自动反序列化 JSON，ioredis 返回字符串
  */
 export async function cacheGet<T>(key: string): Promise<T | null> {
     if (!redis) return null
     try {
         const data = await redis.get(key)
-        if (!data) return null
-        return JSON.parse(data) as T
+        if (data === null || data === undefined) return null
+
+        // Upstash 自动反序列化，直接返回
+        if (redis.isUpstash) {
+            return data as T
+        }
+        // ioredis 返回字符串，需要手动解析
+        return JSON.parse(data as string) as T
     } catch (error) {
         console.error(`Cache get error for key ${key}:`, error)
         return null
@@ -50,11 +57,14 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 
 /**
  * 设置缓存值
+ * 注意: Upstash 会自动序列化 JSON，ioredis 需要手动序列化
  */
 export async function cacheSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     if (!redis) return
     try {
-        await redis.set(key, JSON.stringify(value), { ex: ttlSeconds })
+        // Upstash 自动序列化，ioredis 需要手动 stringify
+        const serialized = redis.isUpstash ? value : JSON.stringify(value)
+        await redis.set(key, serialized as string, { ex: ttlSeconds })
     } catch (error) {
         console.error(`Cache set error for key ${key}:`, error)
     }

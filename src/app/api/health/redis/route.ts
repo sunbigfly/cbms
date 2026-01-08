@@ -32,7 +32,7 @@ export async function GET() {
 
         // 读取测试值
         const readValue = await redis.get(testKey)
-        result.redis.testKey = readValue
+        result.redis.testKey = readValue as string | null
         result.redis.connected = readValue === testValue
 
         // 清理
