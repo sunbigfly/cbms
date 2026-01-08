@@ -5,7 +5,8 @@
   "description": "Cell Bank Management System - Modern Web Application",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start -p 3000",
     "lint": "next lint",
     "db:push": "prisma db push",
