@@ -6,6 +6,29 @@
 
 ---
 
+## 🌐 在线体验
+
+我们提供了一个部署在 Vercel 上的在线演示版本，您可以直接体验完整功能：
+
+| 项目 | 信息 |
+|------|------|
+| **演示地址** | 👉 [https://cbms-gold.vercel.app](https://cbms-gold.vercel.app) |
+| **部署区域** | 🇭🇰 香港 (低延迟) |
+| **演示账号** | `admin` |
+| **演示密码** | `l8Jz3Uf7Gg` |
+
+> ⚠️ **注意**: 这是公共演示环境，数据可能会被其他用户修改。请勿存储敏感信息。
+
+### 技术架构
+
+| 服务 | 提供商 | 说明 |
+|------|--------|------|
+| 应用托管 | [Vercel](https://vercel.com) | Serverless 部署，香港节点 |
+| 数据库 | [Neon](https://neon.tech) | Serverless PostgreSQL |
+| 缓存 | [Upstash Redis](https://upstash.com) | Serverless Redis |
+
+---
+
 ## ✨ 功能特性
 
 - **📦 库存管理** - 多级存储结构（设施 → 架子 → 抽屉 → 盒子 → 槽位）
