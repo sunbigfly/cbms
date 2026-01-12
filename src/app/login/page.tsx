@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
-type LoginStep = 'check' | 'login' | 'register' | 'reset'
+type LoginStep = 'check' | 'login' | 'register'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -24,7 +24,6 @@ export default function LoginPage() {
     const [userName, setUserName] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
-    const [adminPassword, setAdminPassword] = useState('')
     const [existingUserName, setExistingUserName] = useState('')
 
     // Step 1: Check employee ID
@@ -146,54 +145,6 @@ export default function LoginPage() {
         }
     }
 
-    // Step 2c: Reset password with admin verification
-    const handleReset = async () => {
-        if (!adminPassword) {
-            setError('请输入管理员密码')
-            return
-        }
-        if (!password || !/^\d{6}$/.test(password)) {
-            setError('新密码必须是6位数字')
-            return
-        }
-        if (password !== confirmPassword) {
-            setError('两次密码不一致')
-            return
-        }
-
-        setLoading(true)
-        setError('')
-
-        try {
-            const res = await fetch('/api/auth/reset-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    employeeId: employeeId.trim(),
-                    adminPassword,
-                    newPassword: password, // Send the new password
-                }),
-            })
-
-            const data = await res.json()
-
-            if (!res.ok) {
-                setError(data.error || '重置失败')
-                return
-            }
-
-            setSuccess(data.message)
-            setAdminPassword('')
-            setPassword('')
-            setConfirmPassword('')
-            setStep('login')
-        } catch {
-            setError('重置失败，请重试')
-        } finally {
-            setLoading(false)
-        }
-    }
-
     const renderStep = () => {
         switch (step) {
             case 'check':
@@ -267,13 +218,9 @@ export default function LoginPage() {
                                 >
                                     更换工号
                                 </Button>
-                                <Button
-                                    variant="link"
-                                    className="p-0 h-auto text-orange-600"
-                                    onClick={() => setStep('reset')}
-                                >
-                                    工号被冒用？
-                                </Button>
+                                <span className="text-orange-600 text-xs">
+                                    工号被占用？请联系管理员
+                                </span>
                             </div>
                         </CardContent>
                     </>
@@ -335,76 +282,6 @@ export default function LoginPage() {
                                 onClick={() => { setStep('check'); setPassword(''); setConfirmPassword('') }}
                             >
                                 返回
-                            </Button>
-                        </CardContent>
-                    </>
-                )
-
-            case 'reset':
-                return (
-                    <>
-                        <CardHeader className="text-center">
-                            <CardTitle className="text-2xl">账户重置</CardTitle>
-                            <CardDescription>请联系管理员获取超级密码</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Alert>
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                    如果您的工号被他人冒用，请输入管理员超级密码重置账户。
-                                    请设置一个新的6位数字密码。
-                                </AlertDescription>
-                            </Alert>
-                            <div className="space-y-2">
-                                <Label>工号</Label>
-                                <Input value={employeeId} disabled />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="resetNewPassword">新密码</Label>
-                                <Input
-                                    id="resetNewPassword"
-                                    type="password"
-                                    placeholder="请输入6位数字新密码"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="resetConfirmPassword">确认新密码</Label>
-                                <Input
-                                    id="resetConfirmPassword"
-                                    type="password"
-                                    placeholder="请再次输入新密码"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleReset()}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="adminPassword">管理员超级密码</Label>
-                                <Input
-                                    id="adminPassword"
-                                    type="password"
-                                    placeholder="请输入管理员密码"
-                                    value={adminPassword}
-                                    onChange={(e) => setAdminPassword(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleReset()}
-                                />
-                            </div>
-                            <Button
-                                className="w-full"
-                                onClick={handleReset}
-                                disabled={loading}
-                            >
-                                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                重置密码
-                            </Button>
-                            <Button
-                                variant="link"
-                                className="w-full"
-                                onClick={() => { setStep('login'); setAdminPassword('') }}
-                            >
-                                返回登录
                             </Button>
                         </CardContent>
                     </>

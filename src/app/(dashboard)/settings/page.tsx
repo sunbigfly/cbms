@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, Edit, Database, Users, Loader2, ChevronDown, ChevronUp, Package, Layers, ShieldAlert, Settings } from 'lucide-react'
+import { Plus, Trash2, Edit, Database, Users, Loader2, ChevronDown, ChevronUp, Package, Layers, ShieldAlert, Settings, RotateCcw } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -142,8 +142,11 @@ export default function SettingsPage() {
     const [users, setUsers] = useState<UserInfo[]>([])
     const [usersLoading, setUsersLoading] = useState(false)
     const [deleteUserDialogOpen, setDeleteUserDialogOpen] = useState(false)
-
     const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+
+    // Reset user dialog state
+    const [resetUserDialogOpen, setResetUserDialogOpen] = useState(false)
+    const [resettingUserId, setResettingUserId] = useState<string | null>(null)
 
     // Edit Rack Dialog State
     const [editRackDialogOpen, setEditRackDialogOpen] = useState(false)
@@ -270,6 +273,28 @@ export default function SettingsPage() {
             }
         } catch {
             toast({ title: '删除失败', description: '网络错误', variant: 'destructive' })
+        }
+    }
+
+    // Reset user handler
+    const handleResetUser = async () => {
+        if (!resettingUserId) return
+        try {
+            const res = await fetch('/api/users', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: resettingUserId, action: 'reset' }),
+            })
+            if (res.ok) {
+                toast({ title: '重置成功', description: '用户已重置，该工号可以重新注册' })
+                setResetUserDialogOpen(false)
+                fetchUsers()
+            } else {
+                const data = await res.json()
+                toast({ title: '重置失败', description: data.error, variant: 'destructive' })
+            }
+        } catch {
+            toast({ title: '重置失败', description: '网络错误', variant: 'destructive' })
         }
     }
 
@@ -891,6 +916,18 @@ export default function SettingsPage() {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
+                                                                className="text-orange-500"
+                                                                onClick={() => {
+                                                                    setResettingUserId(user.id)
+                                                                    setResetUserDialogOpen(true)
+                                                                }}
+                                                                title="重置用户（清除用户名和密码）"
+                                                            >
+                                                                <RotateCcw className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
                                                                 className="text-destructive"
                                                                 onClick={() => {
                                                                     setDeletingUserId(user.id)
@@ -1390,6 +1427,25 @@ export default function SettingsPage() {
                         <AlertDialogCancel>取消</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive text-destructive-foreground">
                             删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Reset User Dialog */}
+            <AlertDialog open={resetUserDialogOpen} onOpenChange={setResetUserDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认重置用户</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要重置这个用户吗？这将清除该用户的用户名和密码，但保留工号关联的数据。
+                            重置后，该工号可以重新注册账户。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleResetUser} className="bg-orange-500 hover:bg-orange-600 text-white">
+                            重置
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
