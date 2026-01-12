@@ -169,12 +169,6 @@ read_input "管理员密码" "$RANDOM_PWD" ADMIN_PWD
 read_input "管理员邮箱" "admin@cbms.local" ADMIN_EMAIL
 echo ""
 
-# --- 高级安全配置 ---
-echo "--- 🔐 高级安全配置 ---"
-info "配置用于敏感操作（如重置用户密码）的超级密钥"
-read_input "超级管理员密码" "ssyf2026" SUPER_PWD
-echo ""
-
 # 3. 配置汇总与确认
 echo ""
 echo "=================================================="
@@ -204,9 +198,6 @@ echo "[Admin Initial]"
 echo "  - ID:     ${ADMIN_ID}"
 echo "  - Email:  ${ADMIN_EMAIL}"
 echo "  - Pass:   ${ADMIN_PWD}"
-echo ""
-echo "[Security]"
-echo "  - SuperPWD: ${SUPER_PWD}"
 echo "=================================================="
 read_input "确认以上配置并生成文件? (y/n)" "y" CONFIRM_CONFIG
 
@@ -241,9 +232,6 @@ NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
 ADMIN_EMPLOYEE_ID="${ADMIN_ID}"
 ADMIN_PASSWORD="${ADMIN_PWD}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
-
-# Super Admin
-ADMIN_SUPER_PASSWORD="${SUPER_PWD}"
 EOL
 
 success ".env 配置文件生成成功"

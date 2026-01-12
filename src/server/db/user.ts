@@ -68,15 +68,6 @@ export async function registerUser(data: {
     })
 }
 
-export async function resetUserPassword(employeeId: string, newPassword: string) {
-    const hashedPassword = await hash(newPassword, 12)
-
-    return prisma.user.update({
-        where: { employeeId },
-        data: { password: hashedPassword },
-    })
-}
-
 export async function getUsers() {
     return prisma.user.findMany({
         select: {
